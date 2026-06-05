@@ -1,31 +1,94 @@
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
+import { ref } from 'vue'
+import Sidebar from './components/Sidebar.vue'
+import QueryTabs from './components/QueryTabs.vue'
+import ConnectionDialog from './components/ConnectionDialog.vue'
+
+const sidebarRef = ref<InstanceType<typeof Sidebar> | null>(null)
+const isDark = ref(document.documentElement.getAttribute('data-theme') === 'dark')
+
+function refreshTree() {
+  sidebarRef.value?.loadData()
+}
+
+function toggleTheme() {
+  isDark.value = !isDark.value
+  const theme = isDark.value ? 'dark' : 'light'
+  document.documentElement.setAttribute('data-theme', theme)
+  localStorage.setItem('tuxedosql-theme', theme)
+  // Re-trigger CodeMirror theme — a simple class toggle on body
+  document.body.setAttribute('data-theme', theme)
+}
 </script>
 
 <template>
-  <div class="container">
-    <div>
-      <a data-wml-openURL="https://wails.io">
-        <img src="/wails.png" class="logo" alt="Wails logo"/>
-      </a>
-      <a data-wml-openURL="https://vuejs.org/">
-        <img src="/vue.svg" class="logo vue" alt="Vue logo"/>
-      </a>
+  <div class="app-layout">
+    <Sidebar ref="sidebarRef" />
+    <div class="main-area">
+      <div class="top-bar">
+        <span class="app-brand">TuxedoSQL</span>
+        <button
+          class="theme-toggle"
+          :title="isDark ? '切换到浅色主题' : '切换到暗色主题'"
+          @click="toggleTheme"
+        >
+          {{ isDark ? '☀' : '☾' }}
+        </button>
+      </div>
+      <QueryTabs />
     </div>
-    <HelloWorld msg="Wails + Vue" />
+    <ConnectionDialog @saved="refreshTree" />
   </div>
 </template>
 
 <style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
+.app-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #e80000aa);
+
+.main-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--color-sidebar);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.app-brand {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  letter-spacing: 0.3px;
+}
+
+.theme-toggle {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  color: var(--color-text);
+}
+.theme-toggle:hover {
+  background: var(--color-hover);
 }
 </style>

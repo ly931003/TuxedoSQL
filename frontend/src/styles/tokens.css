@@ -1,0 +1,109 @@
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-sidebar: #f5f5f7;
+  --color-border: #d9d9dc;
+  --color-hover: rgba(0, 0, 0, 0.04);
+  --color-selected: rgba(99, 102, 241, 0.10);
+  --color-accent: #6366f1;
+  --color-text: #1a1a2e;
+  --color-text-secondary: #6e6e80;
+  --color-input-bg: #f5f5f7;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* Query editor */
+  --color-editor-bg: #fafbfc;
+  --color-editor-focus-border: #6366f1;
+  --color-editor-text: #1a1a2e;
+  --color-editor-gutter-bg: #f5f5f7;
+  --color-editor-gutter-active: #e8e8ec;
+  --color-editor-active-line: rgba(0, 0, 0, 0.02);
+  --color-editor-cursor: #6366f1;
+
+  /* Result panel */
+  --color-result-header-bg: #f5f5f7;
+  --color-result-stripe: #fafbfc;
+  --color-result-null: #9ca3af;
+
+  /* Splitter */
+  --color-splitter: #e5e7eb;
+  --color-splitter-hover: #6366f1;
+
+  /* Tab bar */
+  --color-tab-bg: #f0f0f3;
+  --color-tab-active-bg: #ffffff;
+  --color-tab-hover-bg: #e8e8ec;
+  --color-tab-text: #6e6e80;
+  --color-tab-active-text: #1a1a2e;
+
+  /* Connection tree */
+  --color-tree-hover: rgba(0, 0, 0, 0.04);
+  --color-tree-selected: rgba(99, 102, 241, 0.10);
+
+  /* Dialog / overlay */
+  --color-overlay: rgba(0, 0, 0, 0.3);
+  --color-dialog-bg: #ffffff;
+
+  /* Dropdown / context menu */
+  --color-dropdown-bg: #ffffff;
+  --color-dropdown-hover: rgba(0, 0, 0, 0.04);
+  --color-dropdown-shadow: rgba(0, 0, 0, 0.10);
+}
+
+/* ── Dark theme ── */
+[data-theme="dark"] {
+  --color-bg: #1a1a2e;
+  --color-surface: #22223a;
+  --color-sidebar: #1e1e36;
+  --color-border: #3a3a5c;
+  --color-hover: rgba(255, 255, 255, 0.06);
+  --color-selected: rgba(99, 102, 241, 0.18);
+  --color-accent: #818cf8;
+  --color-text: #e4e4ed;
+  --color-text-secondary: #a0a0b8;
+  --color-input-bg: #2a2a44;
+
+  /* Query editor */
+  --color-editor-bg: #1e1e36;
+  --color-editor-focus-border: #818cf8;
+  --color-editor-text: #e4e4ed;
+  --color-editor-gutter-bg: #1a1a2e;
+  --color-editor-gutter-active: #22223a;
+  --color-editor-active-line: rgba(255, 255, 255, 0.04);
+  --color-editor-cursor: #818cf8;
+
+  /* Result panel */
+  --color-result-header-bg: #22223a;
+  --color-result-stripe: #1e1e36;
+  --color-result-null: #6b7280;
+
+  /* Splitter */
+  --color-splitter: #3a3a5c;
+  --color-splitter-hover: #818cf8;
+
+  /* Tab bar */
+  --color-tab-bg: #16162b;
+  --color-tab-active-bg: #22223a;
+  --color-tab-hover-bg: #2a2a44;
+  --color-tab-text: #a0a0b8;
+  --color-tab-active-text: #e4e4ed;
+
+  /* Connection tree */
+  --color-tree-hover: rgba(255, 255, 255, 0.06);
+  --color-tree-selected: rgba(129, 140, 248, 0.18);
+
+  /* Dialog / overlay */
+  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-dialog-bg: #22223a;
+
+  /* Dropdown / context menu */
+  --color-dropdown-bg: #2a2a44;
+  --color-dropdown-hover: rgba(255, 255, 255, 0.06);
+  --color-dropdown-shadow: rgba(0, 0, 0, 0.3);
+}

@@ -49,7 +49,7 @@
 
 | # | Milestone | Outcome | Status | Plan |
 |---|---|---|---|---|
-| 1 | 连接管理 MVP | 用户可创建/编辑/删除/测试 MySQL 连接，分组管理，库表树形浏览 | pending | — |
+| 1 | 连接管理 MVP | 用户可创建/编辑/删除/测试 MySQL 连接，分组管理，库表树形浏览 | complete | [plan](../plans/database-connection-management.plan.md) |
 
 ## Open Questions
 - [ ] 连接信息存储格式？（JSON？YAML？SQLite？） — 需在 /plan 阶段决定

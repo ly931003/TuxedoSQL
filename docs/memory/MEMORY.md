@@ -1,0 +1,3 @@
+- [MVP 实现完成](mvp-implementation-complete.md) — TuxedoSQL 一期 MVP 实现总结，包含架构、技术决策、踩坑记录
+- [二期 SQL 编辑器完成](phase2-query-editor-complete.md) — 二期 SQL 编辑器 + 查询执行实现总结，连接池架构、拖拽修复等关键踩坑
+- [后续开发路线图](roadmap-future-planning.md) — 第三期规划、技术债务清单、架构演进方向、功能优先级矩阵

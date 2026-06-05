@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@wailsio/runtime": "latest",
+    "element-plus": "^2.14.1",
+    "pinia": "^3.0.4",
     "vue": "^3.2.45"
   },
   "devDependencies": {
