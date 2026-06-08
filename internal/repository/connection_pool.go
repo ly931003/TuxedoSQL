@@ -106,14 +106,18 @@ func (m *ConnectionManager) GetDBByID(connectionID, database string) (*model.Con
 	return conn, db, nil
 }
 
-// Close 关闭并移除指定连接的连接池。
+// Close 关闭并移除指定连接的所有连接池（匹配 connectionID: 前缀的所有 key）。
+// pool key 格式为 "connectionID:database"，因此需要前缀匹配而非精确查找。
 func (m *ConnectionManager) Close(connectionID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if db, ok := m.pools[connectionID]; ok {
-		db.Close()
-		delete(m.pools, connectionID)
+	prefix := connectionID + ":"
+	for key, db := range m.pools {
+		if len(key) >= len(prefix) && key[:len(prefix)] == prefix {
+			db.Close()
+			delete(m.pools, key)
+		}
 	}
 }
 

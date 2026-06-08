@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useConnectionStore } from '../stores/connection'
+import { useQueryStore } from '../stores/query'
 import { ConnectionService } from '../../bindings/tuxedosql/internal/service'
+import { ElMessageBox } from 'element-plus'
 import type { TestResult } from '../types/connection'
 
 const store = useConnectionStore()
+const queryStore = useQueryStore()
 const emit = defineEmits<{ saved: [] }>()
 
 interface FormData {
@@ -43,6 +46,22 @@ watch(() => store.editingConnection, (conn) => {
 
 async function handleSave() {
   if (!form.name.trim()) return
+
+  // 编辑模式下：检查是否有活跃的查询标签页使用该连接
+  if (store.editingConnection) {
+    const editingId = store.editingConnection.id
+    const activeTabs = queryStore.tabs.filter(t => t.connectionId === editingId)
+    if (activeTabs.length > 0) {
+      const tabNames = activeTabs.map(t => t.title).join('、')
+      const confirmed = await ElMessageBox.confirm(
+        `该连接有 ${activeTabs.length} 个活跃的查询标签页（${tabNames}），保存后所有连接将被重新建立，这些标签页的查询状态可能受影响。是否继续？`,
+        '连接配置变更提醒',
+        { confirmButtonText: '继续保存', cancelButtonText: '取消', type: 'warning' }
+      ).catch(() => false)
+      if (!confirmed) return
+    }
+  }
+
   isSaving.value = true
   try {
     if (store.editingConnection) {

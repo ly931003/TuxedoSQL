@@ -105,6 +105,11 @@ func (s *ConnectionService) Update(params model.UpdateConnectionParams) (*model.
 		return nil, fmt.Errorf("保存连接失败: %w", err)
 	}
 
+	// 关闭旧连接池：配置变更后旧池的 DSN 已过期，必须回收
+	if s.connManager != nil {
+		s.connManager.Close(params.ID)
+	}
+
 	return conn, nil
 }
 
@@ -135,6 +140,8 @@ func (s *ConnectionService) Delete(id string) error {
 	if err := s.repo.SaveConnections(filtered); err != nil {
 		return err
 	}
+	// 清理 OS 密钥环中已删除连接的凭证条目
+	s.repo.DeleteCredential(id)
 	// 关闭已删除连接的连接池
 	if s.connManager != nil {
 		s.connManager.Close(id)
