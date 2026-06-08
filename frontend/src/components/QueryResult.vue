@@ -26,6 +26,8 @@ const props = defineProps<{
   editable?: boolean
   editingCell?: { rowIndex: number; columnName: string } | null
   editingValue?: string
+  // ── Row selection (optional) ──
+  selectedRowIndex?: number
 }>()
 
 const emit = defineEmits<{
@@ -37,6 +39,7 @@ const emit = defineEmits<{
   'cell-edit-confirm': [rowIndex: number, columnName: string, newValue: string]
   'cell-edit-cancel': []
   'cell-edit-update:value': [value: string]
+  'row-select': [rowIndex: number]
 }>()
 
 // ── Sort helpers ──
@@ -110,6 +113,15 @@ function handleJump() {
   jumpPage.value = ''
 }
 
+// ── Row selection ──
+
+function handleRowClick(row: Record<string, unknown>) {
+  const index = props.rows.indexOf(row)
+  if (index !== -1) {
+    emit('row-select', index)
+  }
+}
+
 // ── Inline editing auto-focus ──
 
 watch(() => props.editingCell, (newVal) => {
@@ -125,7 +137,7 @@ watch(() => props.editingCell, (newVal) => {
 
 <template>
   <div class="query-result">
-    <div class="result-table-wrapper" :style="{ height: paginated ? 'calc(100% - 28px)' : '100%' }">
+    <div class="result-table-wrapper">
       <el-table
         :data="rows"
         border
@@ -133,8 +145,10 @@ watch(() => props.editingCell, (newVal) => {
         size="small"
         height="100%"
         table-layout="auto"
+        highlight-current-row
         :class="{ 'is-loading': loading }"
         v-loading="loading"
+        @row-click="handleRowClick"
       >
         <el-table-column
           v-for="col in columns"
@@ -467,6 +481,11 @@ watch(() => props.editingCell, (newVal) => {
   color: var(--color-text, #1a1a2e);
   outline: none;
   box-sizing: border-box;
+}
+
+/* ── Current row highlight (el-table highlight-current-row) ── */
+:deep(.el-table__body tr.current-row > td) {
+  background: var(--color-selected, rgba(99, 102, 241, 0.10)) !important;
 }
 </style>
 

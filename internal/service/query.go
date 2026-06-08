@@ -232,6 +232,40 @@ func (s *QueryService) GetTableSchema(connectionID, database, table string) ([]m
 	return schemas, nil
 }
 
+// GetCreateTable 返回指定表的 CREATE TABLE 语句（SHOW CREATE TABLE 输出）。
+func (s *QueryService) GetCreateTable(connectionID, database, table string) (string, error) {
+	if connectionID == "" {
+		return "", fmt.Errorf("连接ID不能为空")
+	}
+	if database == "" {
+		return "", fmt.Errorf("数据库名不能为空")
+	}
+	if table == "" {
+		return "", fmt.Errorf("表名不能为空")
+	}
+
+	_, db, err := s.connManager.GetDBByID(connectionID, database)
+	if err != nil {
+		return "", err
+	}
+
+	safeTable := "`" + strings.ReplaceAll(table, "`", "``") + "`"
+	query := "SHOW CREATE TABLE " + safeTable
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	row := db.QueryRowContext(ctx, query)
+
+	var tableName string
+	var ddl string
+	if err := row.Scan(&tableName, &ddl); err != nil {
+		return "", fmt.Errorf("获取建表语句失败: %w", err)
+	}
+
+	return ddl, nil
+}
+
 // getColumnWhitelist 返回指定表的合法列名集合，用于排序/筛选列名白名单校验。
 func (s *QueryService) getColumnWhitelist(connectionID, database, table string) (map[string]bool, error) {
 	schemas, err := s.GetTableSchema(connectionID, database, table)

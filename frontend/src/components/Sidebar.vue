@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useConnectionStore } from '../stores/connection'
 import { useQueryStore } from '../stores/query'
+import { useLayoutStore } from '../stores/layout'
 import ConnectionTree from './ConnectionTree.vue'
 import GroupDialog from './GroupDialog.vue'
 import { ConnectionService } from '../../bindings/tuxedosql/internal/service'
@@ -10,6 +11,7 @@ import type { ConnectionGroup, Connection, TreeNode } from '../types/connection'
 
 const store = useConnectionStore()
 const queryStore = useQueryStore()
+const layoutStore = useLayoutStore()
 const treeCompRef = ref<InstanceType<typeof ConnectionTree> | null>(null)
 const treeData = ref<TreeNode[]>([])
 const groupDialogVisible = ref(false)
@@ -248,7 +250,7 @@ onMounted(() => loadData())
 </script>
 
 <template>
-  <div class="sidebar">
+  <div class="sidebar" :style="{ width: layoutStore.leftSidebarWidth + 'px' }">
     <div class="sidebar-header">
       <h2>连接</h2>
       <div class="header-btns">
@@ -281,7 +283,7 @@ onMounted(() => loadData())
 
 <style scoped>
 .sidebar {
-  width: 280px; height: 100%;
+  height: 100%;
   background: var(--color-sidebar);
   border-right: 1px solid var(--color-border);
   display: flex; flex-direction: column;

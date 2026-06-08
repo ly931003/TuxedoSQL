@@ -45,6 +45,7 @@ export interface QueryTab {
   messages: string[]
   isExecuting: boolean
   tableName?: string
+  lastExecutedSQL?: string
   page?: number
   pageSize?: number
   totalRows?: number

@@ -6,6 +6,7 @@ import { SortOrder } from '../types/query'
 import { QueryService } from '../../bindings/tuxedosql/internal/service'
 import * as models from '../../bindings/tuxedosql/internal/model/models'
 import QueryResult from './QueryResult.vue'
+import RecordForm from './RecordForm.vue'
 import DataExport from './DataExport.vue'
 import TableSearch from '../features/table/TableSearch.vue'
 import type { QueryTab, PageResult, FilterCondition, DirtyChange, EditingCell } from '../types/query'
@@ -25,10 +26,24 @@ const editingCell = ref<EditingCell | null>(null)
 const editingValue = ref('')
 const dirtyMap = reactive<Record<string, DirtyChange>>({})
 const dirtyCount = computed(() => Object.keys(dirtyMap).length)
+const currentRowDirtyValues = computed<Record<string, unknown>>(() => {
+  const prefix = `${formRowIndex.value}:`
+  const result: Record<string, unknown> = {}
+  for (const [key, change] of Object.entries(dirtyMap)) {
+    if (key.startsWith(prefix)) {
+      result[change.columnName] = change.newValue
+    }
+  }
+  return result
+})
 const applying = ref(false)
 const pkColumns = ref<string[]>([])
 const schemaLoaded = ref(false)
 const searchFilter = ref<{ column: string; keyword: string } | null>(null)
+const viewMode = ref<'table' | 'form'>('table')
+const formRowIndex = ref(0)
+const selectedRowIndex = ref(0)
+const schemas = ref<TableSchema[]>([])
 
 function dirtyKey(rowIndex: number, columnName: string): string {
   return `${rowIndex}:${columnName}`
@@ -66,10 +81,11 @@ async function loadSchema() {
   if (!tab.tableName || !tab.connectionId || !tab.database) return
 
   try {
-    const schemas: TableSchema[] = await QueryService.GetTableSchema(
+    const schemasRaw: TableSchema[] = await QueryService.GetTableSchema(
       tab.connectionId, tab.database, tab.tableName
     )
-    pkColumns.value = schemas
+    schemas.value = schemasRaw
+    pkColumns.value = schemasRaw
       .filter(s => s.columnKey === 'PRI')
       .map(s => s.name)
     schemaLoaded.value = true
@@ -132,8 +148,9 @@ async function loadData(overrides?: {
     if (result) {
       store.setResult(tab.id, buildResultFromPage(result))
       store.setTablePageResult(tab.id, result.total, result.totalPages)
-      // 审计：仅在翻页/排序/筛选变化时记录 SQL（首次加载也一样）
+      // Update bottom bar with the actual executed SQL
       if (result.sql) {
+        store.updateLastExecutedSQL(tab.id, result.sql)
         store.addMessage(tab.id, `📋 ${result.sql}`)
       }
     }
@@ -180,13 +197,51 @@ async function handleFilterChange(filterList: FilterCondition[]) {
 async function handlePageChange(page: number) {
   store.setTablePage(props.tab.id, page)
   await discardIfDirty()
+  formRowIndex.value = 0
+  selectedRowIndex.value = 0
   loadData({ page })
 }
 
 async function handlePageSizeChange(pageSize: number) {
   store.setTablePageSize(props.tab.id, pageSize)
   await discardIfDirty()
+  formRowIndex.value = 0
+  selectedRowIndex.value = 0
   loadData({ page: 1, pageSize })
+}
+
+// ── Form row navigation ──
+
+function handleFormPrevRow() {
+  if (formRowIndex.value > 0) {
+    formRowIndex.value--
+    selectedRowIndex.value = formRowIndex.value
+  }
+}
+
+function handleFormNextRow() {
+  const total = props.tab.result?.rows?.length ?? 0
+  if (formRowIndex.value < total - 1) {
+    formRowIndex.value++
+    selectedRowIndex.value = formRowIndex.value
+  }
+}
+
+// ── Row selection ──
+
+function handleRowSelect(index: number) {
+  selectedRowIndex.value = index
+}
+
+function handleViewModeSwitch(mode: 'table' | 'form') {
+  if (mode === 'form') {
+    // Sync selected row → form row when switching to form view
+    formRowIndex.value = selectedRowIndex.value
+  } else {
+    // Sync form row → selected row when switching back to table view
+    selectedRowIndex.value = formRowIndex.value
+  }
+  viewMode.value = mode
 }
 
 // ── Cell editing handlers ──
@@ -241,7 +296,28 @@ function handleCellEditCancel() {
   editingCell.value = null
 }
 
+// ── Form field editing ──
+
+function handleFormFieldDblClick(fieldName: string) {
+  const row = props.tab.result?.rows?.[formRowIndex.value]
+  if (!row) return
+
+  const existingKey = dirtyKey(formRowIndex.value, fieldName)
+  const existingDirty = dirtyMap[existingKey]
+  const currentValue = existingDirty ? existingDirty.newValue : row[fieldName]
+
+  editingValue.value = currentValue === null || currentValue === undefined ? '' : String(currentValue)
+  editingCell.value = { rowIndex: formRowIndex.value, columnName: fieldName }
+}
+
 // ── Apply / Discard ──
+
+function handleDiscard() {
+  if (dirtyCount.value === 0) return
+  for (const key of Object.keys(dirtyMap)) {
+    delete dirtyMap[key]
+  }
+}
 
 async function handleApply() {
   if (applying.value) return
@@ -301,6 +377,18 @@ onMounted(() => loadData())
         <span class="table-meta">{{ tab.database }} / {{ tab.tableName }}</span>
       </div>
       <div class="table-actions">
+        <div class="view-toggle">
+          <button
+            class="toggle-btn"
+            :class="{ active: viewMode === 'table' }"
+            @click="handleViewModeSwitch('table')"
+          >表格</button>
+          <button
+            class="toggle-btn"
+            :class="{ active: viewMode === 'form' }"
+            @click="handleViewModeSwitch('form')"
+          >表单</button>
+        </div>
         <button class="tb-btn" title="导出数据" @click="exportVisible = true">⬇ 导出</button>
         <button class="tb-btn" title="刷新" :disabled="loading" @click="loadData()">↻ 刷新</button>
       </div>
@@ -318,7 +406,10 @@ onMounted(() => loadData())
           <span class="loading-text">加载中...</span>
         </div>
       </Transition>
+
+      <!-- Table view -->
       <QueryResult
+        v-if="viewMode === 'table'"
         :columns="tab.result?.columns ?? []"
         :rows="tab.result?.rows ?? []"
         :message="tab.result?.message"
@@ -335,6 +426,7 @@ onMounted(() => loadData())
         :editable="true"
         :editing-cell="editingCell"
         :editing-value="editingValue"
+        :selected-row-index="selectedRowIndex"
         @sort-change="handleSortChange"
         @filter-change="handleFilterChange"
         @update:page="handlePageChange"
@@ -343,6 +435,27 @@ onMounted(() => loadData())
         @cell-edit-confirm="handleCellEditConfirm"
         @cell-edit-cancel="handleCellEditCancel"
         @cell-edit-update:value="editingValue = $event"
+        @row-select="handleRowSelect"
+      />
+
+      <!-- Form view -->
+      <RecordForm
+        v-else
+        :columns="tab.result?.columns ?? []"
+        :row="(tab.result?.rows ?? [])[formRowIndex] ?? null"
+        :row-index="formRowIndex"
+        :total-in-page="(tab.result?.rows ?? []).length"
+        :pk-columns="pkColumns"
+        :schemas="schemas"
+        :dirty-map="dirtyMap"
+        :editing-field="editingCell?.columnName ?? null"
+        :editing-value="editingValue"
+        @field-dblclick="handleFormFieldDblClick"
+        @field-edit-confirm="(fieldName: string, newValue: string) => handleCellEditConfirm(formRowIndex, fieldName, newValue)"
+        @field-edit-cancel="handleCellEditCancel"
+        @field-edit-update:value="editingValue = $event"
+        @prev-row="handleFormPrevRow"
+        @next-row="handleFormNextRow"
       />
     </div>
 
@@ -351,7 +464,7 @@ onMounted(() => loadData())
       <div v-if="dirtyCount > 0" class="dirty-bar">
         <span class="dirty-info">{{ dirtyCount }} 项修改待提交</span>
         <div class="dirty-actions">
-          <button class="bar-btn bar-btn--discard" :disabled="applying" @click="handleApply">放弃</button>
+          <button class="bar-btn bar-btn--discard" :disabled="applying" @click="handleDiscard">放弃</button>
           <button class="bar-btn bar-btn--apply" :disabled="applying" @click="handleApply">
             {{ applying ? '提交中...' : '应用' }}
           </button>
@@ -377,7 +490,6 @@ onMounted(() => loadData())
   display: flex;
   flex-direction: column;
   flex: 1;
-  height: 100%;
   min-height: 0;
   background: var(--color-bg, #fff);
 }
@@ -411,7 +523,41 @@ onMounted(() => loadData())
 
 .table-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+/* ── View toggle button group ── */
+
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--color-border, #d9d9dc);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+}
+
+.toggle-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: none;
+  background: var(--color-surface, #fff);
+  cursor: pointer;
+  color: var(--color-text-secondary, #6e6e80);
+  transition: background 0.15s, color 0.15s;
+  border-right: 1px solid var(--color-border, #d9d9dc);
+}
+
+.toggle-btn:last-child {
+  border-right: none;
+}
+
+.toggle-btn.active {
+  background: var(--color-accent, #6366f1);
+  color: #fff;
+}
+
+.toggle-btn:hover:not(.active) {
+  background: var(--color-hover, rgba(0, 0, 0, 0.04));
 }
 
 .tb-btn {

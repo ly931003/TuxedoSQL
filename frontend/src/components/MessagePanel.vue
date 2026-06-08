@@ -45,30 +45,13 @@ function getMessageClass(msg: string): string {
   background: var(--color-sidebar);
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
-.message-panel .msg-list {
-  flex: 1;
-  overflow-y: auto;
-  max-height: none;
-}
-
 .message-panel.collapsed {
-  height: auto;
   flex: 0 0 auto;
-}
-
-.msg-empty {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  padding: 12px;
-  text-align: center;
-  font-style: italic;
-}
-.message-panel.collapsed {
-  border-top: 1px solid var(--color-border);
 }
 
 .msg-header {
@@ -79,6 +62,7 @@ function getMessageClass(msg: string): string {
   cursor: pointer;
   user-select: none;
   font-size: 12px;
+  flex-shrink: 0;
 }
 .msg-header:hover {
   background: var(--color-hover);
@@ -101,10 +85,20 @@ function getMessageClass(msg: string): string {
 }
 
 .msg-list {
-  max-height: 120px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0 12px 4px;
 }
+
+.msg-empty {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding: 12px;
+  text-align: center;
+  font-style: italic;
+}
+
 .msg-item {
   font-size: 12px;
   font-family: var(--font-mono, monospace);
@@ -116,20 +110,4 @@ function getMessageClass(msg: string): string {
 .msg-success { color: #27ae60; }
 .msg-info { color: var(--color-text-secondary); }
 .msg-audit { color: var(--color-accent); font-weight: 500; }
-
-/* Force MessagePanel to show scrollbar for audit SQL */
-.message-panel:not(.collapsed) {
-  max-height: none;
-  flex-shrink: 1;
-  min-height: 60px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.message-panel:not(.collapsed) .msg-list {
-  flex: 1;
-  max-height: 200px;
-  overflow-y: auto;
-}
 </style>

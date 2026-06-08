@@ -78,6 +78,18 @@ export const useQueryStore = defineStore('query', {
       tableName: string
       title?: string
     }): QueryTab {
+      const existingTab = this.tabs.find((item) => (
+        item.viewType === 'table'
+        && item.connectionId === tab.connectionId
+        && item.database === tab.database
+        && item.tableName === tab.tableName
+      ))
+
+      if (existingTab) {
+        this.activeTabId = existingTab.id
+        return existingTab
+      }
+
       const id = genID()
       const title = tab.title ?? tab.tableName
       const newTab: QueryTab = {
@@ -221,6 +233,16 @@ export const useQueryStore = defineStore('query', {
       this.tabs = [
         ...this.tabs.slice(0, idx),
         { ...this.tabs[idx], totalRows: total, totalPages },
+        ...this.tabs.slice(idx + 1),
+      ]
+    },
+
+    updateLastExecutedSQL(id: string, sql: string): void {
+      const idx = this.tabs.findIndex((t) => t.id === id)
+      if (idx === -1) return
+      this.tabs = [
+        ...this.tabs.slice(0, idx),
+        { ...this.tabs[idx], lastExecutedSQL: sql },
         ...this.tabs.slice(idx + 1),
       ]
     },

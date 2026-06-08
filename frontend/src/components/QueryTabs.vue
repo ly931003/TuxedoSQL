@@ -1,21 +1,30 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick } from 'vue'
 import { useQueryStore } from '../stores/query'
+import { useLayoutStore } from '../stores/layout'
 import { QueryService } from '../../bindings/tuxedosql/internal/service'
 import QueryEditor from './QueryEditor.vue'
 import QueryResult from './QueryResult.vue'
 import MessagePanel from './MessagePanel.vue'
 import ResizableSplitter from './ResizableSplitter.vue'
 import TableView from './TableView.vue'
+import TableInfoPanel from './TableInfoPanel.vue'
+import TableDDLPanel from './TableDDLPanel.vue'
 import type { QueryTab } from '../types/query'
 
 const store = useQueryStore()
+const layoutStore = useLayoutStore()
 
 const splitPercent = ref(40)
 const messagePanelWidth = ref(260)
 const editingTabId = ref<string | null>(null)
 const editTitle = ref('')
 const executePromises = new Map<string, { cancel: () => void }>()
+const sidebarTab = ref<'messages' | 'info' | 'ddl'>('messages')
+
+function handleRightSidebarResize(width: number) {
+  layoutStore.setRightSidebarWidth(width)
+}
 
 // ── Tab helpers ──
 
@@ -61,6 +70,8 @@ async function handleExecute(tabId: string) {
   if (!tab || tab.isExecuting) return
 
   store.setExecuting(tabId, true)
+  // Track the SQL being executed for the bottom bar
+  store.updateLastExecutedSQL(tabId, tab.sql)
   try {
     const promise = QueryService.Execute(tab.connectionId, tab.database, tab.sql)
     executePromises.set(tabId, promise)
@@ -172,8 +183,50 @@ onMounted(async () => {
         <div class="table-main">
           <TableView :key="store.activeTab.id" :tab="store.activeTab" />
         </div>
-        <div class="message-sidebar">
-          <MessagePanel :messages="store.activeTab?.messages ?? []" :message-type="store.activeTab?.result?.messageType" />
+        <ResizableSplitter
+          v-show="layoutStore.rightSidebarVisible"
+          direction="horizontal"
+          :min-width="160"
+          :max-width="600"
+          @resize-width="handleRightSidebarResize"
+        />
+        <div v-show="layoutStore.rightSidebarVisible" class="right-sidebar" :style="{ width: layoutStore.rightSidebarWidth + 'px' }">
+          <div class="sidebar-tabs">
+            <button
+              class="sidebar-tab-btn"
+              :class="{ active: sidebarTab === 'messages' }"
+              @click="sidebarTab = 'messages'"
+            >消息</button>
+            <button
+              class="sidebar-tab-btn"
+              :class="{ active: sidebarTab === 'info' }"
+              @click="sidebarTab = 'info'"
+            >表信息</button>
+            <button
+              class="sidebar-tab-btn"
+              :class="{ active: sidebarTab === 'ddl' }"
+              @click="sidebarTab = 'ddl'"
+            >建表语句</button>
+          </div>
+          <div class="sidebar-content">
+            <MessagePanel
+              v-if="sidebarTab === 'messages'"
+              :messages="store.activeTab?.messages ?? []"
+              :message-type="store.activeTab?.result?.messageType"
+            />
+            <TableInfoPanel
+              v-if="sidebarTab === 'info'"
+              :connection-id="store.activeTab.connectionId"
+              :database="store.activeTab.database"
+              :table-name="store.activeTab.tableName ?? ''"
+            />
+            <TableDDLPanel
+              v-if="sidebarTab === 'ddl'"
+              :connection-id="store.activeTab.connectionId"
+              :database="store.activeTab.database"
+              :table-name="store.activeTab.tableName ?? ''"
+            />
+          </div>
         </div>
       </div>
 
@@ -213,7 +266,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   flex: 1;
-  height: 100%;
+  min-height: 0;
   min-width: 0;
   background: var(--color-bg, #fff);
 }
@@ -316,11 +369,45 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.message-sidebar {
-  width: 260px;
+.right-sidebar {
   flex-shrink: 0;
   border-left: 1px solid var(--color-border);
   background: var(--color-sidebar);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-tabs {
+  flex-shrink: 0;
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-tab-btn {
+  flex: 1;
+  padding: 5px 0;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.sidebar-tab-btn:hover {
+  background: var(--color-hover);
+}
+
+.sidebar-tab-btn.active {
+  color: var(--color-text);
+  background: var(--color-tab-active-bg, #fff);
+  font-weight: 500;
+}
+
+.sidebar-content {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 

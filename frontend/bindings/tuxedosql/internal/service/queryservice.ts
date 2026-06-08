@@ -24,6 +24,13 @@ export function Execute(connectionID: string, database: string, sqlStmt: string)
 }
 
 /**
+ * GetCreateTable 返回指定表的 CREATE TABLE 语句（SHOW CREATE TABLE 输出）。
+ */
+export function GetCreateTable(connectionID: string, database: string, table: string): $CancellablePromise<string> {
+    return $Call.ByID(3834720565, connectionID, database, table);
+}
+
+/**
  * GetTableData 执行分页查询，支持排序和筛选。
  * 列名（SortColumn、Filter.Column）通过 INFORMATION_SCHEMA 白名单校验，防止 SQL 注入。
  * 筛选值使用参数化查询（? 占位符），仅操作符通过白名单校验后拼入 SQL。

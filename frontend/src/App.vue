@@ -3,7 +3,11 @@ import { ref } from 'vue'
 import Sidebar from './components/Sidebar.vue'
 import QueryTabs from './components/QueryTabs.vue'
 import ConnectionDialog from './components/ConnectionDialog.vue'
+import BottomBar from './components/BottomBar.vue'
+import ResizableSplitter from './components/ResizableSplitter.vue'
+import { useLayoutStore } from './stores/layout'
 
+const layoutStore = useLayoutStore()
 const sidebarRef = ref<InstanceType<typeof Sidebar> | null>(null)
 const isDark = ref(document.documentElement.getAttribute('data-theme') === 'dark')
 
@@ -16,27 +20,40 @@ function toggleTheme() {
   const theme = isDark.value ? 'dark' : 'light'
   document.documentElement.setAttribute('data-theme', theme)
   localStorage.setItem('tuxedosql-theme', theme)
-  // Re-trigger CodeMirror theme — a simple class toggle on body
   document.body.setAttribute('data-theme', theme)
+}
+
+function handleLeftSidebarResize(width: number) {
+  layoutStore.setLeftSidebarWidth(width)
 }
 </script>
 
 <template>
   <div class="app-layout">
-    <Sidebar ref="sidebarRef" />
-    <div class="main-area">
-      <div class="top-bar">
-        <span class="app-brand">TuxedoSQL</span>
-        <button
-          class="theme-toggle"
-          :title="isDark ? '切换到浅色主题' : '切换到暗色主题'"
-          @click="toggleTheme"
-        >
-          {{ isDark ? '☀' : '☾' }}
-        </button>
+    <div class="content-row">
+      <Sidebar ref="sidebarRef" v-show="layoutStore.leftSidebarVisible" />
+      <ResizableSplitter
+        v-show="layoutStore.leftSidebarVisible"
+        direction="horizontal"
+        :min-width="180"
+        :max-width="500"
+        @resize-width="handleLeftSidebarResize"
+      />
+      <div class="main-area">
+        <div class="top-bar">
+          <span class="app-brand">TuxedoSQL</span>
+          <button
+            class="theme-toggle"
+            :title="isDark ? '切换到浅色主题' : '切换到暗色主题'"
+            @click="toggleTheme"
+          >
+            {{ isDark ? '☀' : '☾' }}
+          </button>
+        </div>
+        <QueryTabs />
       </div>
-      <QueryTabs />
     </div>
+    <BottomBar />
     <ConnectionDialog @saved="refreshTree" />
   </div>
 </template>
@@ -44,7 +61,15 @@ function toggleTheme() {
 <style scoped>
 .app-layout {
   display: flex;
+  flex-direction: column;
   height: 100%;
+  overflow: hidden;
+}
+
+.content-row {
+  display: flex;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -53,6 +78,7 @@ function toggleTheme() {
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .top-bar {
