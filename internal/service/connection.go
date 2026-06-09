@@ -48,6 +48,10 @@ func (s *ConnectionService) Create(params model.CreateConnectionParams) (*model.
 	}
 
 	now := time.Now()
+	tz := params.Timezone
+	if tz == "" {
+		tz = "Local"
+	}
 	conn := model.Connection{
 		ID:        fmt.Sprintf("conn_%d", now.UnixMilli()),
 		Name:      params.Name,
@@ -57,6 +61,7 @@ func (s *ConnectionService) Create(params model.CreateConnectionParams) (*model.
 		Username:  params.Username,
 		Password:  params.Password,
 		Database:  params.Database,
+		Timezone:  tz,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -99,6 +104,11 @@ func (s *ConnectionService) Update(params model.UpdateConnectionParams) (*model.
 	conn.Username = params.Username
 	conn.Password = params.Password
 	conn.Database = params.Database
+	if params.Timezone == "" {
+		conn.Timezone = "Local"
+	} else {
+		conn.Timezone = params.Timezone
+	}
 	conn.UpdatedAt = time.Now()
 
 	if err := s.repo.SaveConnections(connections); err != nil {

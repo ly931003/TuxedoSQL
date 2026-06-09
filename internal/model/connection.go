@@ -12,6 +12,7 @@ type Connection struct {
 	Username  string    `json:"username"`
 	Password  string    `json:"password"`
 	Database  string    `json:"database"`
+	Timezone  string    `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -41,6 +42,7 @@ type CreateConnectionParams struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Database string `json:"database"`
+	Timezone string `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
 }
 
 // UpdateConnectionParams 是更新连接时的请求参数。
@@ -53,6 +55,7 @@ type UpdateConnectionParams struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Database string `json:"database"`
+	Timezone string `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
 }
 
 // TestResult 是测试连接的结果。

@@ -3,6 +3,7 @@ import { ref, nextTick, watch } from 'vue'
 import { SortOrder, FilterOperator } from '../types/query'
 import type { ColumnInfo, FilterCondition } from '../types/query'
 import { FILTER_OPERATOR_LABELS } from '../types/query'
+import { formatCellValue } from '../lib/timeFormat'
 
 const props = defineProps<{
   columns: ColumnInfo[]
@@ -175,7 +176,7 @@ watch(() => props.editingCell, (newVal) => {
               @dblclick="editable && emit('cell-dblclick', $index, col.name)"
             >
               <span v-if="row[col.name] === null || row[col.name] === undefined" class="null-value">(NULL)</span>
-              <span v-else>{{ String(row[col.name]) }}</span>
+              <span v-else>{{ formatCellValue(col.type, row[col.name]) }}</span>
             </span>
             <input
               v-else

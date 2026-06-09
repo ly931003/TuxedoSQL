@@ -21,6 +21,7 @@ func TestConnectionService_Create(t *testing.T) {
 		name    string
 		params  model.CreateConnectionParams
 		wantErr bool
+		checkFn func(t *testing.T, conn *model.Connection)
 	}{
 		{
 			name: "创建有效连接",
@@ -31,8 +32,31 @@ func TestConnectionService_Create(t *testing.T) {
 				Username: "root",
 				Password: "test",
 				Database: "mysql",
+				Timezone: "Asia/Shanghai",
 			},
 			wantErr: false,
+			checkFn: func(t *testing.T, conn *model.Connection) {
+				if conn.Timezone != "Asia/Shanghai" {
+					t.Errorf("Timezone = %q, want %q", conn.Timezone, "Asia/Shanghai")
+				}
+			},
+		},
+		{
+			name: "空时区应默认为Local",
+			params: model.CreateConnectionParams{
+				Name:     "空时区",
+				Host:     "127.0.0.1",
+				Port:     3306,
+				Username: "root",
+				Password: "test",
+				Timezone: "",
+			},
+			wantErr: false,
+			checkFn: func(t *testing.T, conn *model.Connection) {
+				if conn.Timezone != "Local" {
+					t.Errorf("空时区应默认为 Local, 实际 %q", conn.Timezone)
+				}
+			},
 		},
 		{
 			name: "空名称应报错",
@@ -71,6 +95,14 @@ func TestConnectionService_Create(t *testing.T) {
 				Password: "test",
 			},
 			wantErr: false,
+			checkFn: func(t *testing.T, conn *model.Connection) {
+				if conn.Port != 3306 {
+					t.Errorf("默认端口应为 3306, 实际 %d", conn.Port)
+				}
+				if conn.Timezone != "Local" {
+					t.Errorf("未传时区应默认为 Local, 实际 %q", conn.Timezone)
+				}
+			},
 		},
 	}
 
@@ -94,11 +126,11 @@ func TestConnectionService_Create(t *testing.T) {
 			if conn.Name != tt.params.Name {
 				t.Errorf("连接名称 = %q, 期望 %q", conn.Name, tt.params.Name)
 			}
-			if tt.params.Port == 0 && conn.Port != 3306 {
-				t.Errorf("默认端口应为 3306, 实际 %d", conn.Port)
-			}
 			if conn.ID == "" {
 				t.Error("连接ID不应为空")
+			}
+			if tt.checkFn != nil {
+				tt.checkFn(t, conn)
 			}
 		})
 	}
@@ -115,9 +147,13 @@ func TestConnectionService_CRUD(t *testing.T) {
 		Password: "secret",
 		Database: "testdb",
 		GroupID:  "group_1",
+		Timezone: "UTC",
 	})
 	if err != nil {
 		t.Fatalf("创建连接失败: %v", err)
+	}
+	if conn.Timezone != "UTC" {
+		t.Errorf("Timezone = %q, want %q", conn.Timezone, "UTC")
 	}
 
 	connections, err := svc.List()
@@ -143,6 +179,7 @@ func TestConnectionService_CRUD(t *testing.T) {
 		Username: "admin2",
 		Password: "newsecret",
 		Database: "newdb",
+		Timezone: "Asia/Shanghai",
 	})
 	if err != nil {
 		t.Fatalf("更新连接失败: %v", err)
@@ -153,8 +190,29 @@ func TestConnectionService_CRUD(t *testing.T) {
 	if updated.Host != "10.0.0.1" {
 		t.Errorf("更新后主机 = %q, 期望 %q", updated.Host, "10.0.0.1")
 	}
+	if updated.Timezone != "Asia/Shanghai" {
+		t.Errorf("更新后时区 = %q, 期望 %q", updated.Timezone, "Asia/Shanghai")
+	}
 	if updated.UpdatedAt.Equal(conn.UpdatedAt) {
 		t.Error("更新时间应已更新但未更新")
+	}
+
+	// Update with empty timezone should default to Local
+	updated2, err := svc.Update(model.UpdateConnectionParams{
+		ID:       conn.ID,
+		Name:     "CRUD测试(空时区)",
+		Host:     "10.0.0.1",
+		Port:     3308,
+		Username: "admin2",
+		Password: "newsecret",
+		Database: "newdb",
+		Timezone: "",
+	})
+	if err != nil {
+		t.Fatalf("更新连接(空时区)失败: %v", err)
+	}
+	if updated2.Timezone != "Local" {
+		t.Errorf("空时区更新后应默认为 Local, 实际 %q", updated2.Timezone)
 	}
 
 	if err := svc.Delete(conn.ID); err != nil {

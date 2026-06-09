@@ -56,6 +56,11 @@ export class Connection {
     "username": string;
     "password": string;
     "database": string;
+
+    /**
+     * IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
+     */
+    "timezone": string;
     "createdAt": time$0.Time;
     "updatedAt": time$0.Time;
 
@@ -84,6 +89,9 @@ export class Connection {
         }
         if (!("database" in $$source)) {
             this["database"] = "";
+        }
+        if (!("timezone" in $$source)) {
+            this["timezone"] = "";
         }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = null;
@@ -148,6 +156,11 @@ export class CreateConnectionParams {
     "password": string;
     "database": string;
 
+    /**
+     * IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
+     */
+    "timezone": string;
+
     /** Creates a new CreateConnectionParams instance. */
     constructor($$source: Partial<CreateConnectionParams> = {}) {
         if (!("name" in $$source)) {
@@ -170,6 +183,9 @@ export class CreateConnectionParams {
         }
         if (!("database" in $$source)) {
             this["database"] = "";
+        }
+        if (!("timezone" in $$source)) {
+            this["timezone"] = "";
         }
 
         Object.assign(this, $$source);
@@ -728,6 +744,11 @@ export class UpdateConnectionParams {
     "password": string;
     "database": string;
 
+    /**
+     * IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
+     */
+    "timezone": string;
+
     /** Creates a new UpdateConnectionParams instance. */
     constructor($$source: Partial<UpdateConnectionParams> = {}) {
         if (!("id" in $$source)) {
@@ -753,6 +774,9 @@ export class UpdateConnectionParams {
         }
         if (!("database" in $$source)) {
             this["database"] = "";
+        }
+        if (!("timezone" in $$source)) {
+            this["timezone"] = "";
         }
 
         Object.assign(this, $$source);

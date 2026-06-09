@@ -9,6 +9,7 @@ import QueryResult from './QueryResult.vue'
 import RecordForm from './RecordForm.vue'
 import DataExport from './DataExport.vue'
 import TableSearch from '../features/table/TableSearch.vue'
+import { formatCellValue } from '../lib/timeFormat'
 import type { QueryTab, PageResult, FilterCondition, DirtyChange, EditingCell } from '../types/query'
 import type { TableSchema } from '../../bindings/tuxedosql/internal/model/models'
 
@@ -254,8 +255,10 @@ function handleCellDblClick(rowIndex: number, columnName: string) {
   const existingKey = dirtyKey(rowIndex, columnName)
   const existingDirty = dirtyMap[existingKey]
   const currentValue = existingDirty ? existingDirty.newValue : row[columnName]
+  const col = props.tab.result?.columns?.find(c => c.name === columnName)
+  const colType = col?.type ?? ''
 
-  editingValue.value = currentValue === null || currentValue === undefined ? '' : String(currentValue)
+  editingValue.value = currentValue === null || currentValue === undefined ? '' : formatCellValue(colType, currentValue)
   editingCell.value = { rowIndex, columnName }
 }
 
@@ -305,8 +308,10 @@ function handleFormFieldDblClick(fieldName: string) {
   const existingKey = dirtyKey(formRowIndex.value, fieldName)
   const existingDirty = dirtyMap[existingKey]
   const currentValue = existingDirty ? existingDirty.newValue : row[fieldName]
+  const col = props.tab.result?.columns?.find(c => c.name === fieldName)
+  const colType = col?.type ?? ''
 
-  editingValue.value = currentValue === null || currentValue === undefined ? '' : String(currentValue)
+  editingValue.value = currentValue === null || currentValue === undefined ? '' : formatCellValue(colType, currentValue)
   editingCell.value = { rowIndex: formRowIndex.value, columnName: fieldName }
 }
 

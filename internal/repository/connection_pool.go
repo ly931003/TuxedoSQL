@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,8 +66,25 @@ func (m *ConnectionManager) GetDB(conn *model.Connection, database string) (*sql
 		dbName = "mysql"
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?timeout=5s&parseTime=true",
-		conn.Username, conn.Password, conn.Host, conn.Port, dbName)
+	// 时区处理：验证 IANA 名称并将 "/" URL 编码，避免 DSN 解析错误。
+	// 空值/Local 等价于 Go time.Local（用户本机时区）。
+	tz := conn.Timezone
+	if tz == "" {
+		tz = "Local"
+	}
+	if tz != "Local" {
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			log.Printf("[connection_pool] 无效时区 %q，回退到 Local: %v", tz, err)
+			tz = "Local"
+		} else {
+			tz = loc.String() // 规范化 IANA 名称
+		}
+	}
+	encodedLoc := strings.ReplaceAll(tz, "/", "%2F")
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?timeout=5s&parseTime=true&loc=%s",
+		conn.Username, conn.Password, conn.Host, conn.Port, dbName, encodedLoc)
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {

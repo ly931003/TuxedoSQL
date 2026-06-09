@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ColumnInfo, DirtyChange } from '../types/query'
 import type { TableSchema } from '../../bindings/tuxedosql/internal/model/models'
+import { formatCellValue } from '../lib/timeFormat'
 
 const props = defineProps<{
   columns: ColumnInfo[]
@@ -45,7 +46,8 @@ function getDisplayValue(colName: string): string {
 
   const raw = props.row?.[colName]
   if (raw === null || raw === undefined) return ''
-  return String(raw)
+  const col = props.columns.find(c => c.name === colName)
+  return formatCellValue(col?.type ?? '', raw)
 }
 
 function isNull(colName: string): boolean {

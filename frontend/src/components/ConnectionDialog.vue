@@ -18,11 +18,12 @@ interface FormData {
   username: string
   password: string
   database: string
+  timezone: string
 }
 
 const form = reactive<FormData>({
   name: '', groupId: '', host: '127.0.0.1', port: 3306,
-  username: 'root', password: '', database: '',
+  username: 'root', password: '', database: '', timezone: 'Local',
 })
 
 const testResult = reactive<TestResult>({ success: false, message: '' })
@@ -39,7 +40,7 @@ watch(() => store.editingConnection, (conn) => {
     (Object.keys(form) as (keyof FormData)[]).forEach(k => { (form as Record<string, unknown>)[k] = (conn as Record<string, unknown>)[k] })
   } else {
     form.name = ''; form.groupId = ''; form.host = '127.0.0.1'; form.port = 3306
-    form.username = 'root'; form.password = ''; form.database = ''
+    form.username = 'root'; form.password = ''; form.database = ''; form.timezone = 'Local'
   }
   testResult.success = false; testResult.message = ''
 })
@@ -70,6 +71,7 @@ async function handleSave() {
         name: form.name, groupId: form.groupId, host: form.host,
         port: form.port, username: form.username,
         password: form.password, database: form.database,
+        timezone: form.timezone,
       })
       if (conn) store.updateConnection(conn)
     } else {
@@ -77,6 +79,7 @@ async function handleSave() {
         name: form.name, groupId: form.groupId, host: form.host,
         port: form.port, username: form.username,
         password: form.password, database: form.database,
+        timezone: form.timezone,
       })
       if (conn) store.addConnection(conn)
     }
@@ -95,6 +98,7 @@ async function handleTest() {
         name: '__temp_test__', groupId: '', host: form.host,
         port: form.port, username: form.username,
         password: form.password, database: form.database,
+        timezone: form.timezone,
       })
       if (!temp) { testResult.message = '创建临时连接失败'; return }
       connId = temp.id
@@ -151,6 +155,38 @@ function handleClose() { store.closeDialog() }
       </el-form-item>
       <el-form-item label="密码">
         <el-input v-model="form.password" type="password" show-password placeholder="数据库密码" />
+      </el-form-item>
+      <el-form-item label="时区">
+        <el-select v-model="form.timezone" filterable allow-create placeholder="选择或输入时区" class="full-width">
+          <el-option-group label="常用">
+            <el-option label="本机时区" value="Local" />
+            <el-option label="UTC" value="UTC" />
+          </el-option-group>
+          <el-option-group label="亚洲">
+            <el-option label="Asia/Shanghai" value="Asia/Shanghai" />
+            <el-option label="Asia/Tokyo" value="Asia/Tokyo" />
+            <el-option label="Asia/Hong_Kong" value="Asia/Hong_Kong" />
+            <el-option label="Asia/Singapore" value="Asia/Singapore" />
+            <el-option label="Asia/Kolkata" value="Asia/Kolkata" />
+          </el-option-group>
+          <el-option-group label="欧洲">
+            <el-option label="Europe/London" value="Europe/London" />
+            <el-option label="Europe/Berlin" value="Europe/Berlin" />
+            <el-option label="Europe/Paris" value="Europe/Paris" />
+            <el-option label="Europe/Moscow" value="Europe/Moscow" />
+          </el-option-group>
+          <el-option-group label="美洲">
+            <el-option label="America/New_York" value="America/New_York" />
+            <el-option label="America/Los_Angeles" value="America/Los_Angeles" />
+            <el-option label="America/Chicago" value="America/Chicago" />
+            <el-option label="America/Sao_Paulo" value="America/Sao_Paulo" />
+          </el-option-group>
+          <el-option-group label="固定偏移">
+            <el-option label="+08:00" value="+08:00" />
+            <el-option label="+00:00" value="+00:00" />
+            <el-option label="-05:00" value="-05:00" />
+          </el-option-group>
+        </el-select>
       </el-form-item>
       <div v-if="testResult.message" class="test-result" :class="{ 'test-result--ok': testResult.success }">
         {{ testResult.message }}

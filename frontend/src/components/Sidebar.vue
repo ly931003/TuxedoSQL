@@ -206,7 +206,7 @@ async function handleNodeDragEnd(dragging: TreeNode, target: TreeNode, dropType:
       await ConnectionService.Update({
         id: conn.id, name: conn.name, groupId: newGroupId,
         host: conn.host, port: conn.port, username: conn.username,
-        password: conn.password, database: conn.database,
+        password: conn.password, database: conn.database, timezone: conn.timezone,
       })
       await loadData()
       ElMessage.success(`已将 "${conn.name}" 移至${newGroupId ? '分组' : '未分组'}`)

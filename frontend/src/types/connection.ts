@@ -7,6 +7,7 @@ export interface Connection {
   username: string
   password: string
   database: string
+  timezone: string
   createdAt: string
   updatedAt: string
 }
@@ -25,6 +26,7 @@ export interface CreateConnectionParams {
   username: string
   password: string
   database: string
+  timezone: string
 }
 
 export interface UpdateConnectionParams {
@@ -36,6 +38,7 @@ export interface UpdateConnectionParams {
   username: string
   password: string
   database: string
+  timezone: string
 }
 
 export interface TestResult {
