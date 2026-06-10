@@ -10,7 +10,7 @@ import RecordForm from './RecordForm.vue'
 import DataExport from './DataExport.vue'
 import TableSearch from '../features/table/TableSearch.vue'
 import { formatCellValue } from '../lib/timeFormat'
-import type { QueryTab, PageResult, FilterCondition, DirtyChange, EditingCell } from '../types/query'
+import type { QueryTab, PageResult, FilterGroup, DirtyChange, EditingCell } from '../types/query'
 import type { TableSchema } from '../../bindings/tuxedosql/internal/model/models'
 
 const store = useQueryStore()
@@ -40,11 +40,16 @@ const currentRowDirtyValues = computed<Record<string, unknown>>(() => {
 const applying = ref(false)
 const pkColumns = ref<string[]>([])
 const schemaLoaded = ref(false)
-const searchFilter = ref<{ column: string; keyword: string } | null>(null)
+const searchFilterGroup = ref<FilterGroup | null>(null)
 const viewMode = ref<'table' | 'form'>('table')
 const formRowIndex = ref(0)
 const selectedRowIndex = ref(0)
 const schemas = ref<TableSchema[]>([])
+
+// effectiveFilters: either the search filter group, or the tab's persistent group
+const effectiveFilters = computed<FilterGroup | undefined | null>(() => {
+  return searchFilterGroup.value ?? props.tab.filters ?? undefined
+})
 
 function dirtyKey(rowIndex: number, columnName: string): string {
   return `${rowIndex}:${columnName}`
@@ -101,7 +106,7 @@ async function loadData(overrides?: {
   pageSize?: number
   sortColumn?: string
   sortOrder?: SortOrder
-  filters?: FilterCondition[]
+  filters?: FilterGroup | null | undefined
 }) {
   const tab = props.tab
   if (!tab.tableName || !tab.connectionId || !tab.database) return
@@ -118,17 +123,7 @@ async function loadData(overrides?: {
   const pageSize = overrides?.pageSize ?? tab.pageSize ?? 100
   const sortColumn = overrides?.sortColumn ?? tab.sortColumn ?? ''
   const sortOrder = overrides?.sortOrder ?? tab.sortOrder ?? SortOrder.SortASC
-  const filters = overrides?.filters ?? tab.filters ?? []
-
-  // Attach search as LIKE filter
-  const allFilters = [...filters]
-  if (searchFilter.value) {
-    allFilters.push({
-      column: searchFilter.value.column,
-      operator: 'contains' as FilterCondition['operator'],
-      value: searchFilter.value.keyword,
-    } as FilterCondition)
-  }
+  const filters = overrides?.filters ?? effectiveFilters.value
 
   try {
     const params = new models.TableDataParams({
@@ -139,11 +134,7 @@ async function loadData(overrides?: {
       pageSize,
       sortColumn,
       sortOrder: sortOrder as models.SortOrder,
-      filters: allFilters.map(f => new models.FilterCondition({
-        column: f.column,
-        operator: f.operator as models.FilterOperator,
-        value: f.value,
-      })),
+      filters: filters ? new models.FilterGroup(filters) : null,
     })
     const result = await QueryService.GetTableData(params)
     if (result) {
@@ -165,13 +156,13 @@ async function loadData(overrides?: {
 
 // ── Table search handlers ──
 
-function handleTableSearch(params: { column: string; keyword: string }) {
-  searchFilter.value = { column: params.column, keyword: params.keyword }
+function handleTableSearch(group: FilterGroup | null) {
+  searchFilterGroup.value = group
   loadData({ page: 1 })
 }
 
 function handleTableSearchReset() {
-  searchFilter.value = null
+  searchFilterGroup.value = null
   loadData({ page: 1 })
 }
 
@@ -189,7 +180,7 @@ async function handleSortChange(column: string, order: SortOrder) {
   loadData({ page: 1, sortColumn: column, sortOrder: order as SortOrder })
 }
 
-async function handleFilterChange(filterList: FilterCondition[]) {
+async function handleFilterChange(filterList: FilterGroup | null | undefined) {
   store.setTableFilters(props.tab.id, filterList)
   await discardIfDirty()
   loadData({ page: 1, filters: filterList })
@@ -426,7 +417,7 @@ onMounted(() => loadData())
         :total-pages="tab.totalPages ?? 1"
         :sort-column="tab.sortColumn ?? ''"
         :sort-order="tab.sortOrder ?? SortOrder.SortASC"
-        :filters="tab.filters ?? []"
+        :filters="effectiveFilters ?? undefined"
         :loading="loading"
         :editable="true"
         :editing-cell="editingCell"
@@ -485,6 +476,9 @@ onMounted(() => loadData())
       :all-row-count="tab.totalRows ?? 0"
       :current-page="tab.page ?? 1"
       :page-size="tab.pageSize ?? 100"
+      :connection-id="tab.connectionId ?? ''"
+      :database="tab.database ?? ''"
+      :filters="effectiveFilters ?? undefined"
       @close="exportVisible = false"
     />
   </div>

@@ -16,6 +16,10 @@ const emit = defineEmits<{
   'edit-group': [groupId: string]
   'delete-group': [groupId: string]
   'query-table': [node: TreeNode]
+  'create-database': [connectionId: string, databaseName: string]
+  'create-table': [connectionId: string, databaseName: string]
+  'drop-database': [connectionId: string, databaseName: string]
+  'drop-table': [connectionId: string, databaseName: string, tableName: string]
 }>()
 
 function allowDrag(node: any): boolean {
@@ -92,7 +96,7 @@ function handleNodeDblClick(data: TreeNode) {
 function handleContextMenu(event: MouseEvent, data: TreeNode) {
   event.preventDefault()
   event.stopPropagation()
-  if (data.type === 'connection' || data.type === 'group' || data.type === 'table') {
+  if (data.type === 'connection' || data.type === 'group' || data.type === 'table' || data.type === 'database') {
     ctxNode.value = data
     ctxPos.value = { x: event.clientX, y: event.clientY }
     ctxVisible.value = true
@@ -121,6 +125,42 @@ function handleDelete() {
 function handleQueryTable() {
   if (!ctxNode.value) return
   if (ctxNode.value.type === 'table') emit('query-table', ctxNode.value)
+  closeContextMenu()
+}
+
+function parseNodeKey(key: string): { connId: string; db: string; table: string } {
+  const parts = key.split('/')
+  const connId = parts[0]
+  const table = parts.length > 2 ? parts[parts.length - 1] : ''
+  const db = parts.slice(1, table ? -1 : parts.length).join('/')
+  return { connId, db, table }
+}
+
+function handleCreateDatabase() {
+  if (!ctxNode.value) return
+  const { connId, db } = parseNodeKey(ctxNode.value.key)
+  emit('create-database', connId, db)
+  closeContextMenu()
+}
+
+function handleCreateTable() {
+  if (!ctxNode.value) return
+  const { connId, db } = parseNodeKey(ctxNode.value.key)
+  emit('create-table', connId, db)
+  closeContextMenu()
+}
+
+function handleDropDatabase() {
+  if (!ctxNode.value) return
+  const { connId, db } = parseNodeKey(ctxNode.value.key)
+  emit('drop-database', connId, db)
+  closeContextMenu()
+}
+
+function handleDropTable() {
+  if (!ctxNode.value) return
+  const { connId, db, table } = parseNodeKey(ctxNode.value.key)
+  emit('drop-table', connId, db, table)
   closeContextMenu()
 }
 
@@ -164,10 +204,16 @@ defineExpose({ treeRef })
       <div v-if="ctxVisible" class="ctx-menu" :style="{ left: ctxPos.x + 'px', top: ctxPos.y + 'px' }">
         <template v-if="ctxNode?.type === 'table'">
           <div class="ctx-item ctx-item--query" @click="handleQueryTable">🔍 查询表</div>
+          <div class="ctx-item ctx-item--danger" @click="handleDropTable">🗑 删除表</div>
+        </template>
+        <template v-else-if="ctxNode?.type === 'database'">
+          <div class="ctx-item" @click="handleCreateTable">📄 新建表</div>
+          <div class="ctx-item ctx-item--danger" @click="handleDropDatabase">🗑 删除数据库</div>
         </template>
         <template v-else>
           <div class="ctx-item" @click="handleEdit">{{ getMenuLabel() }}</div>
           <div class="ctx-item ctx-item--danger" @click="handleDelete">{{ getDeleteLabel() }}</div>
+          <div v-if="ctxNode?.type === 'connection'" class="ctx-item" @click="handleCreateDatabase">🗄 新建数据库</div>
         </template>
       </div>
     </Teleport>

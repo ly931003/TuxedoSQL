@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { SortOrder } from '../types/query'
-import type { QueryTab, QueryResult, TabState, FilterCondition } from '../types/query'
+import type { QueryTab, QueryResult, TabState, FilterGroup } from '../types/query'
 
 let nextTabNum = 1
 
@@ -109,7 +109,7 @@ export const useQueryStore = defineStore('query', {
         totalPages: 0,
         sortColumn: '',
         sortOrder: SortOrder.SortASC,
-        filters: [],
+        filters: undefined,
       }
       this.tabs = [...this.tabs, newTab]
       this.activeTabId = id
@@ -217,12 +217,12 @@ export const useQueryStore = defineStore('query', {
       ]
     },
 
-    setTableFilters(id: string, filters: FilterCondition[]): void {
+    setTableFilters(id: string, filters: FilterGroup | null | undefined): void {
       const idx = this.tabs.findIndex((t) => t.id === id)
       if (idx === -1) return
       this.tabs = [
         ...this.tabs.slice(0, idx),
-        { ...this.tabs[idx], filters, page: 1 },
+        { ...this.tabs[idx], filters: filters ?? undefined, page: 1 },
         ...this.tabs.slice(idx + 1),
       ]
     },

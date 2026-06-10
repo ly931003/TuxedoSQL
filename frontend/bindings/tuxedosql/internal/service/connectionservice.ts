@@ -24,10 +24,28 @@ export function Create(params: model$0.CreateConnectionParams): $CancellableProm
 }
 
 /**
+ * CreateDatabase 在指定连接上创建一个新数据库。
+ */
+export function CreateDatabase(params: model$0.CreateDatabaseParams): $CancellablePromise<model$0.DDLResult | null> {
+    return $Call.ByID(4221261972, params).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * CreateGroup 创建一个新的连接分组。
  */
 export function CreateGroup(params: model$0.CreateGroupParams): $CancellablePromise<model$0.ConnectionGroup | null> {
     return $Call.ByID(908184912, params).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
+ * CreateTable 在指定数据库中创建一个新表。
+ */
+export function CreateTable(params: model$0.CreateTableParams): $CancellablePromise<model$0.DDLResult | null> {
+    return $Call.ByID(3509275091, params).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -47,11 +65,47 @@ export function DeleteGroup(id: string): $CancellablePromise<void> {
 }
 
 /**
+ * DropDatabase 删除指定连接上的一个数据库。
+ */
+export function DropDatabase(connectionID: string, databaseName: string): $CancellablePromise<model$0.DDLResult | null> {
+    return $Call.ByID(867714573, connectionID, databaseName).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * DropTable 删除指定数据库中的表。
+ */
+export function DropTable(connectionID: string, databaseName: string, tableName: string): $CancellablePromise<model$0.DDLResult | null> {
+    return $Call.ByID(1021124708, connectionID, databaseName, tableName).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * GetCharsets 返回 MySQL 支持的字符集列表（含默认排序规则）。
+ */
+export function GetCharsets(connectionID: string): $CancellablePromise<model$0.CharsetInfo[]> {
+    return $Call.ByID(3651190038, connectionID).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
+ * GetCollations 返回指定字符集对应的排序规则列表。
+ */
+export function GetCollations(connectionID: string, charset: string): $CancellablePromise<string[]> {
+    return $Call.ByID(106717655, connectionID, charset).then(($result: any) => {
+        return $$createType8($result);
+    });
+}
+
+/**
  * GetDatabases 获取指定连接下的所有数据库列表。
  */
 export function GetDatabases(connectionID: string): $CancellablePromise<string[]> {
     return $Call.ByID(995719319, connectionID).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType8($result);
     });
 }
 
@@ -60,7 +114,7 @@ export function GetDatabases(connectionID: string): $CancellablePromise<string[]
  */
 export function GetTables(connectionID: string, databaseName: string): $CancellablePromise<string[]> {
     return $Call.ByID(2108392282, connectionID, databaseName).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType8($result);
     });
 }
 
@@ -69,7 +123,7 @@ export function GetTables(connectionID: string, databaseName: string): $Cancella
  */
 export function List(): $CancellablePromise<model$0.Connection[]> {
     return $Call.ByID(322307189).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType9($result);
     });
 }
 
@@ -78,7 +132,7 @@ export function List(): $CancellablePromise<model$0.Connection[]> {
  */
 export function ListGroups(): $CancellablePromise<model$0.ConnectionGroup[]> {
     return $Call.ByID(3937025149).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType10($result);
     });
 }
 
@@ -87,7 +141,7 @@ export function ListGroups(): $CancellablePromise<model$0.ConnectionGroup[]> {
  */
 export function TestConnection(id: string): $CancellablePromise<model$0.TestResult> {
     return $Call.ByID(1045268253, id).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType11($result);
     });
 }
 
@@ -105,16 +159,20 @@ export function Update(params: model$0.UpdateConnectionParams): $CancellableProm
  */
 export function UpdateGroup(params: model$0.UpdateGroupParams): $CancellablePromise<model$0.ConnectionGroup | null> {
     return $Call.ByID(3809535531, params).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = model$0.Connection.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = model$0.ConnectionGroup.createFrom;
+const $$createType2 = model$0.DDLResult.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = $Create.Array($$createType0);
-const $$createType6 = $Create.Array($$createType2);
-const $$createType7 = model$0.TestResult.createFrom;
+const $$createType4 = model$0.ConnectionGroup.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = model$0.CharsetInfo.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $Create.Array($Create.Any);
+const $$createType9 = $Create.Array($$createType0);
+const $$createType10 = $Create.Array($$createType4);
+const $$createType11 = model$0.TestResult.createFrom;

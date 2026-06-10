@@ -3,26 +3,35 @@ import type {
   QueryResult,
   TabState,
   TableSchema,
-  FilterCondition,
+  FilterGroup,
   TableDataParams,
   PageResult,
   UpdateRowParams,
   UpdateRowResult,
 } from '../../bindings/tuxedosql/internal/model/models'
-import { SortOrder, FilterOperator } from '../../bindings/tuxedosql/internal/model/models'
+import { SortOrder, FilterOperator, LogicOp } from '../../bindings/tuxedosql/internal/model/models'
 
 export type {
   ColumnInfo,
   QueryResult,
   TabState,
   TableSchema,
-  FilterCondition,
+  FilterGroup,
   TableDataParams,
   PageResult,
   UpdateRowParams,
   UpdateRowResult,
 }
-export { SortOrder, FilterOperator }
+export { SortOrder, FilterOperator, LogicOp }
+
+/** Leaf filter condition (subset of FilterGroup as leaf node). */
+export interface FilterCondition {
+  logic?: LogicOp
+  conditions?: FilterGroup[]
+  column: string
+  operator: FilterOperator
+  value: string
+}
 
 export const FILTER_OPERATOR_LABELS: Record<string, string> = {
   eq: '等于',
@@ -52,7 +61,7 @@ export interface QueryTab {
   totalPages?: number
   sortColumn?: string
   sortOrder?: SortOrder
-  filters?: FilterCondition[]
+  filters?: FilterGroup
 }
 
 /** Tracks one pending cell edit before applying to the database. */

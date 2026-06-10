@@ -64,23 +64,46 @@ const (
 	OpNotNull  FilterOperator = "notnull"
 )
 
-// FilterCondition 表示一个列筛选条件。
+// LogicOp 表示筛选组内的布尔连接词。
+type LogicOp string
+
+const (
+	LogicAND LogicOp = "AND"
+	LogicOR  LogicOp = "OR"
+)
+
+// FilterCondition 表示一个叶子筛选条件（列 op 值）。
 type FilterCondition struct {
 	Column   string         `json:"column"`   // 列名
 	Operator FilterOperator `json:"operator"` // 操作符
 	Value    string         `json:"value"`    // 筛选值（isnull/notnull 时忽略）
 }
 
+// FilterGroup 表示一个可嵌套的布尔筛选表达式。
+// 若 Conditions 非空，则为 AND/OR 组合节点；否则为叶子节点（使用 Column/Operator/Value）。
+type FilterGroup struct {
+	Logic      LogicOp          `json:"logic"`      // 组合逻辑：AND 或 OR
+	Conditions []*FilterGroup   `json:"conditions"`  // 嵌套子组（至少 2 个）
+	Column     string           `json:"column"`      // 叶子节点：列名
+	Operator   FilterOperator   `json:"operator"`    // 叶子节点：操作符
+	Value      string           `json:"value"`       // 叶子节点：筛选值
+}
+
+// IsLeaf reports whether this group is a leaf condition (not a logic group).
+func (g *FilterGroup) IsLeaf() bool {
+	return len(g.Conditions) == 0
+}
+
 // TableDataParams 是 GetTableData 的入参，包含分页、排序和筛选条件。
 type TableDataParams struct {
-	ConnectionID string            `json:"connectionId"` // 连接ID
-	Database     string            `json:"database"`     // 数据库名
-	Table        string            `json:"table"`        // 表名
-	Page         int               `json:"page"`         // 页码，从1开始
-	PageSize     int               `json:"pageSize"`     // 每页条数
-	SortColumn   string            `json:"sortColumn"`   // 排序列名，空表示不排序
-	SortOrder    SortOrder         `json:"sortOrder"`    // 排序方向
-	Filters      []FilterCondition `json:"filters"`      // 筛选条件
+	ConnectionID string       `json:"connectionId"` // 连接ID
+	Database     string       `json:"database"`     // 数据库名
+	Table        string       `json:"table"`        // 表名
+	Page         int          `json:"page"`         // 页码，从1开始
+	PageSize     int          `json:"pageSize"`     // 每页条数
+	SortColumn   string       `json:"sortColumn"`   // 排序列名，空表示不排序
+	SortOrder    SortOrder    `json:"sortOrder"`    // 排序方向
+	Filters      *FilterGroup `json:"filters"`      // 筛选条件（nil 表示无筛选）
 }
 
 // PageResult 是一次分页查询的返回结果。

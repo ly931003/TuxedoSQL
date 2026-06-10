@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
-import { SortOrder, FilterOperator } from '../types/query'
-import type { ColumnInfo, FilterCondition } from '../types/query'
+import { SortOrder, FilterOperator, LogicOp } from '../types/query'
+import type { ColumnInfo, FilterCondition, FilterGroup } from '../types/query'
 import { FILTER_OPERATOR_LABELS } from '../types/query'
 import { formatCellValue } from '../lib/timeFormat'
 
@@ -20,7 +20,7 @@ const props = defineProps<{
   sortColumn?: string
   sortOrder?: SortOrder
   // ── Filters (optional) ──
-  filters?: FilterCondition[]
+  filters?: FilterGroup | null
   // ── Loading (optional) ──
   loading?: boolean
   // ── Inline editing (optional) ──
@@ -35,7 +35,7 @@ const emit = defineEmits<{
   'update:page': [page: number]
   'update:pageSize': [pageSize: number]
   'sort-change': [column: string, order: SortOrder]
-  'filter-change': [filters: FilterCondition[]]
+  'filter-change': [filters: FilterGroup | null]
   'cell-dblclick': [rowIndex: number, columnName: string]
   'cell-edit-confirm': [rowIndex: number, columnName: string, newValue: string]
   'cell-edit-cancel': []
@@ -80,22 +80,32 @@ function handleHeaderContextMenu(event: MouseEvent, colName: string) {
 
 function applyFilter() {
   if (filterColumn.value) {
-    const newFilters = (props.filters ?? []).filter(f => f.column !== filterColumn.value)
+    const existing = (props.filters?.conditions ?? []).filter((f): f is FilterGroup => f != null && 'column' in f && (f as FilterCondition).column !== filterColumn.value)
+    const newChildren: FilterGroup[] = [...existing]
     if (filterOperator.value === FilterOperator.OpIsNull || filterOperator.value === FilterOperator.OpNotNull || filterValue.value) {
-      newFilters.push({
+      newChildren.push({
+        logic: LogicOp.LogicAND, conditions: [],
         column: filterColumn.value,
         operator: filterOperator.value,
         value: filterValue.value,
-      } as FilterCondition)
+      })
     }
-    emit('filter-change', newFilters)
+    if (newChildren.length > 0) {
+      emit('filter-change', { logic: LogicOp.LogicAND, conditions: newChildren, column: '', operator: FilterOperator.OpEQ, value: '' })
+    } else {
+      emit('filter-change', null)
+    }
   }
   filterVisible.value = false
 }
 
 function removeFilter(colName: string) {
-  const newFilters = (props.filters ?? []).filter(f => f.column !== colName)
-  emit('filter-change', newFilters)
+  const remaining = (props.filters?.conditions ?? []).filter((f): f is FilterGroup => f != null && 'column' in f && (f as FilterCondition).column !== colName)
+  if (remaining.length > 0) {
+    emit('filter-change', { logic: LogicOp.LogicAND, conditions: remaining, column: '', operator: FilterOperator.OpEQ, value: '' })
+  } else {
+    emit('filter-change', null)
+  }
 }
 
 // ── Pagination ──
@@ -239,14 +249,14 @@ watch(() => props.editingCell, (newVal) => {
     </div>
 
     <!-- Active filter badges -->
-    <div v-if="paginated && filters && filters.length > 0" class="filter-badges">
+    <div v-if="paginated && filters && filters.conditions && filters.conditions.length > 0" class="filter-badges">
       <span
-        v-for="f in filters"
-        :key="f.column"
+        v-for="f in filters.conditions.filter((c): c is FilterGroup => c != null && 'column' in c && typeof (c as FilterCondition).column === 'string')"
+        :key="(f as FilterCondition).column"
         class="filter-badge"
       >
-        {{ f.column }} {{ (FILTER_OPERATOR_LABELS as Record<string, string>)[f.operator] }} {{ f.operator === 'isnull' || f.operator === 'notnull' ? '' : f.value }}
-        <button class="filter-remove" @click="removeFilter(f.column)">×</button>
+        {{ (f as FilterCondition).column }} {{ (FILTER_OPERATOR_LABELS as Record<string, string>)[(f as FilterCondition).operator] }} {{ (f as FilterCondition).operator === 'isnull' || (f as FilterCondition).operator === 'notnull' ? '' : (f as FilterCondition).value }}
+        <button class="filter-remove" @click="removeFilter((f as FilterCondition).column)">×</button>
       </span>
     </div>
 

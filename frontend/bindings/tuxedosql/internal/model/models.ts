@@ -10,6 +10,132 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as time$0 from "../../../time/models.js";
 
 /**
+ * CharsetInfo 表示 MySQL 支持的字符集及其默认排序规则。
+ */
+export class CharsetInfo {
+    /**
+     * 字符集名
+     */
+    "charset": string;
+
+    /**
+     * 默认排序规则
+     */
+    "defaultCollation": string;
+
+    /**
+     * 描述
+     */
+    "description": string;
+
+    /** Creates a new CharsetInfo instance. */
+    constructor($$source: Partial<CharsetInfo> = {}) {
+        if (!("charset" in $$source)) {
+            this["charset"] = "";
+        }
+        if (!("defaultCollation" in $$source)) {
+            this["defaultCollation"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CharsetInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CharsetInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CharsetInfo($$parsedSource as Partial<CharsetInfo>);
+    }
+}
+
+/**
+ * ColumnDef 是建表时的一列定义。
+ */
+export class ColumnDef {
+    /**
+     * 列名
+     */
+    "name": string;
+
+    /**
+     * 数据类型（如 "INT", "VARCHAR(255)"）
+     */
+    "dataType": string;
+
+    /**
+     * 是否可空
+     */
+    "nullable": boolean;
+
+    /**
+     * 默认值（空串表示无默认值）
+     */
+    "defaultValue": string;
+
+    /**
+     * 是否自增
+     */
+    "autoIncrement": boolean;
+
+    /**
+     * 是否无符号（数值类型）
+     */
+    "unsigned": boolean;
+
+    /**
+     * 列注释
+     */
+    "comment": string;
+
+    /**
+     * 是否主键
+     */
+    "isPrimaryKey": boolean;
+
+    /** Creates a new ColumnDef instance. */
+    constructor($$source: Partial<ColumnDef> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("dataType" in $$source)) {
+            this["dataType"] = "";
+        }
+        if (!("nullable" in $$source)) {
+            this["nullable"] = false;
+        }
+        if (!("defaultValue" in $$source)) {
+            this["defaultValue"] = "";
+        }
+        if (!("autoIncrement" in $$source)) {
+            this["autoIncrement"] = false;
+        }
+        if (!("unsigned" in $$source)) {
+            this["unsigned"] = false;
+        }
+        if (!("comment" in $$source)) {
+            this["comment"] = "";
+        }
+        if (!("isPrimaryKey" in $$source)) {
+            this["isPrimaryKey"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ColumnDef instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ColumnDef {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ColumnDef($$parsedSource as Partial<ColumnDef>);
+    }
+}
+
+/**
  * ColumnInfo 描述查询结果中的一列元数据。
  */
 export class ColumnInfo {
@@ -201,6 +327,57 @@ export class CreateConnectionParams {
 }
 
 /**
+ * CreateDatabaseParams 是创建新数据库的请求参数。
+ */
+export class CreateDatabaseParams {
+    /**
+     * 连接ID
+     */
+    "connectionId": string;
+
+    /**
+     * 新数据库名
+     */
+    "databaseName": string;
+
+    /**
+     * 字符集（如 "utf8mb4"），空表示使用 MySQL 默认值
+     */
+    "charset": string;
+
+    /**
+     * 排序规则（如 "utf8mb4_unicode_ci"），空表示使用 MySQL 默认值
+     */
+    "collation": string;
+
+    /** Creates a new CreateDatabaseParams instance. */
+    constructor($$source: Partial<CreateDatabaseParams> = {}) {
+        if (!("connectionId" in $$source)) {
+            this["connectionId"] = "";
+        }
+        if (!("databaseName" in $$source)) {
+            this["databaseName"] = "";
+        }
+        if (!("charset" in $$source)) {
+            this["charset"] = "";
+        }
+        if (!("collation" in $$source)) {
+            this["collation"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateDatabaseParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateDatabaseParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CreateDatabaseParams($$parsedSource as Partial<CreateDatabaseParams>);
+    }
+}
+
+/**
  * CreateGroupParams 是创建分组时的请求参数。
  */
 export class CreateGroupParams {
@@ -229,26 +406,157 @@ export class CreateGroupParams {
 }
 
 /**
- * FilterCondition 表示一个列筛选条件。
+ * CreateTableParams 是创建新表的请求参数。
  */
-export class FilterCondition {
+export class CreateTableParams {
     /**
-     * 列名
+     * 连接ID
+     */
+    "connectionId": string;
+
+    /**
+     * 目标数据库名
+     */
+    "databaseName": string;
+
+    /**
+     * 新表名
+     */
+    "tableName": string;
+
+    /**
+     * 字符集
+     */
+    "charset": string;
+
+    /**
+     * 排序规则
+     */
+    "collation": string;
+
+    /**
+     * 表注释
+     */
+    "comment": string;
+
+    /**
+     * 列定义
+     */
+    "columns": ColumnDef[];
+
+    /** Creates a new CreateTableParams instance. */
+    constructor($$source: Partial<CreateTableParams> = {}) {
+        if (!("connectionId" in $$source)) {
+            this["connectionId"] = "";
+        }
+        if (!("databaseName" in $$source)) {
+            this["databaseName"] = "";
+        }
+        if (!("tableName" in $$source)) {
+            this["tableName"] = "";
+        }
+        if (!("charset" in $$source)) {
+            this["charset"] = "";
+        }
+        if (!("collation" in $$source)) {
+            this["collation"] = "";
+        }
+        if (!("comment" in $$source)) {
+            this["comment"] = "";
+        }
+        if (!("columns" in $$source)) {
+            this["columns"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateTableParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateTableParams {
+        const $$createField6_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("columns" in $$parsedSource) {
+            $$parsedSource["columns"] = $$createField6_0($$parsedSource["columns"]);
+        }
+        return new CreateTableParams($$parsedSource as Partial<CreateTableParams>);
+    }
+}
+
+/**
+ * DDLResult 是 DDL 操作的通用返回结果。
+ */
+export class DDLResult {
+    /**
+     * 执行的 SQL
+     */
+    "sql": string;
+
+    /**
+     * 操作结果消息
+     */
+    "message": string;
+
+    /** Creates a new DDLResult instance. */
+    constructor($$source: Partial<DDLResult> = {}) {
+        if (!("sql" in $$source)) {
+            this["sql"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DDLResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DDLResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DDLResult($$parsedSource as Partial<DDLResult>);
+    }
+}
+
+/**
+ * FilterGroup 表示一个可嵌套的布尔筛选表达式。
+ * 若 Conditions 非空，则为 AND/OR 组合节点；否则为叶子节点（使用 Column/Operator/Value）。
+ */
+export class FilterGroup {
+    /**
+     * 组合逻辑：AND 或 OR
+     */
+    "logic": LogicOp;
+
+    /**
+     * 嵌套子组（至少 2 个）
+     */
+    "conditions": (FilterGroup | null)[];
+
+    /**
+     * 叶子节点：列名
      */
     "column": string;
 
     /**
-     * 操作符
+     * 叶子节点：操作符
      */
     "operator": FilterOperator;
 
     /**
-     * 筛选值（isnull/notnull 时忽略）
+     * 叶子节点：筛选值
      */
     "value": string;
 
-    /** Creates a new FilterCondition instance. */
-    constructor($$source: Partial<FilterCondition> = {}) {
+    /** Creates a new FilterGroup instance. */
+    constructor($$source: Partial<FilterGroup> = {}) {
+        if (!("logic" in $$source)) {
+            this["logic"] = LogicOp.$zero;
+        }
+        if (!("conditions" in $$source)) {
+            this["conditions"] = [];
+        }
         if (!("column" in $$source)) {
             this["column"] = "";
         }
@@ -263,11 +571,15 @@ export class FilterCondition {
     }
 
     /**
-     * Creates a new FilterCondition instance from a string or object.
+     * Creates a new FilterGroup instance from a string or object.
      */
-    static createFrom($$source: any = {}): FilterCondition {
+    static createFrom($$source: any = {}): FilterGroup {
+        const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new FilterCondition($$parsedSource as Partial<FilterCondition>);
+        if ("conditions" in $$parsedSource) {
+            $$parsedSource["conditions"] = $$createField1_0($$parsedSource["conditions"]);
+        }
+        return new FilterGroup($$parsedSource as Partial<FilterGroup>);
     }
 }
 
@@ -287,6 +599,19 @@ export enum FilterOperator {
     OpLT = "lt",
     OpIsNull = "isnull",
     OpNotNull = "notnull",
+};
+
+/**
+ * LogicOp 表示筛选组内的布尔连接词。
+ */
+export enum LogicOp {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    LogicAND = "AND",
+    LogicOR = "OR",
 };
 
 /**
@@ -383,8 +708,8 @@ export class PageResult {
      * Creates a new PageResult instance from a string or object.
      */
     static createFrom($$source: any = {}): PageResult {
-        const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType3;
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
@@ -458,8 +783,8 @@ export class QueryResult {
      * Creates a new QueryResult instance from a string or object.
      */
     static createFrom($$source: any = {}): QueryResult {
-        const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType3;
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
@@ -597,9 +922,9 @@ export class TableDataParams {
     "sortOrder": SortOrder;
 
     /**
-     * 筛选条件
+     * 筛选条件（nil 表示无筛选）
      */
-    "filters": FilterCondition[];
+    "filters": FilterGroup | null;
 
     /** Creates a new TableDataParams instance. */
     constructor($$source: Partial<TableDataParams> = {}) {
@@ -625,7 +950,7 @@ export class TableDataParams {
             this["sortOrder"] = SortOrder.$zero;
         }
         if (!("filters" in $$source)) {
-            this["filters"] = [];
+            this["filters"] = null;
         }
 
         Object.assign(this, $$source);
@@ -635,7 +960,7 @@ export class TableDataParams {
      * Creates a new TableDataParams instance from a string or object.
      */
     static createFrom($$source: any = {}): TableDataParams {
-        const $$createField7_0 = $$createType5;
+        const $$createField7_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("filters" in $$parsedSource) {
             $$parsedSource["filters"] = $$createField7_0($$parsedSource["filters"]);
@@ -886,7 +1211,7 @@ export class UpdateRowParams {
      * Creates a new UpdateRowParams instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateRowParams {
-        const $$createField3_0 = $$createType2;
+        const $$createField3_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pkValues" in $$parsedSource) {
             $$parsedSource["pkValues"] = $$createField3_0($$parsedSource["pkValues"]);
@@ -939,9 +1264,12 @@ export class UpdateRowResult {
 }
 
 // Private type creation functions
-const $$createType0 = ColumnInfo.createFrom;
+const $$createType0 = ColumnDef.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $Create.Map($Create.Any, $Create.Any);
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = FilterCondition.createFrom;
-const $$createType5 = $Create.Array($$createType4);
+const $$createType2 = FilterGroup.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = ColumnInfo.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $Create.Map($Create.Any, $Create.Any);
+const $$createType8 = $Create.Array($$createType7);

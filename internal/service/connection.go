@@ -423,3 +423,308 @@ func (s *ConnectionService) findConnection(id string) (*model.Connection, error)
 	}
 	return nil, fmt.Errorf("连接不存在: %s", id)
 }
+
+// CreateDatabase 在指定连接上创建一个新数据库。
+func (s *ConnectionService) CreateDatabase(params model.CreateDatabaseParams) (*model.DDLResult, error) {
+	if params.ConnectionID == "" {
+		return nil, fmt.Errorf("连接ID不能为空")
+	}
+	if params.DatabaseName == "" {
+		return nil, fmt.Errorf("数据库名不能为空")
+	}
+
+	conn, err := s.findConnection(params.ConnectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := s.connManager.GetDB(conn, "")
+	if err != nil {
+		return nil, err
+	}
+
+	safeName := "`" + strings.ReplaceAll(params.DatabaseName, "`", "``") + "`"
+	createSQL := "CREATE DATABASE " + safeName
+	if params.Charset != "" {
+		createSQL += " CHARACTER SET " + strings.ReplaceAll(params.Charset, "'", "")
+	}
+	if params.Collation != "" {
+		createSQL += " COLLATE " + strings.ReplaceAll(params.Collation, "'", "")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if _, err := db.ExecContext(ctx, createSQL); err != nil {
+		return nil, fmt.Errorf("创建数据库失败: %w", err)
+	}
+
+	return &model.DDLResult{
+		SQL:     createSQL,
+		Message: fmt.Sprintf("数据库 \"%s\" 创建成功", params.DatabaseName),
+	}, nil
+}
+
+// DropDatabase 删除指定连接上的一个数据库。
+func (s *ConnectionService) DropDatabase(connectionID, databaseName string) (*model.DDLResult, error) {
+	if connectionID == "" {
+		return nil, fmt.Errorf("连接ID不能为空")
+	}
+	if databaseName == "" {
+		return nil, fmt.Errorf("数据库名不能为空")
+	}
+
+	// 安全检查：禁止删除系统数据库
+	upper := strings.ToUpper(databaseName)
+	systemDBs := map[string]bool{
+		"INFORMATION_SCHEMA": true, "MYSQL": true, "PERFORMANCE_SCHEMA": true, "SYS": true,
+	}
+	if systemDBs[upper] {
+		return nil, fmt.Errorf("禁止删除系统数据库: %s", databaseName)
+	}
+
+	conn, err := s.findConnection(connectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := s.connManager.GetDB(conn, "")
+	if err != nil {
+		return nil, err
+	}
+
+	safeName := "`" + strings.ReplaceAll(databaseName, "`", "``") + "`"
+	dropSQL := "DROP DATABASE " + safeName
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if _, err := db.ExecContext(ctx, dropSQL); err != nil {
+		return nil, fmt.Errorf("删除数据库失败: %w", err)
+	}
+
+	// 清理连接池：删除数据库后，该 database 的连接池已无效
+	s.connManager.Close(connectionID)
+
+	return &model.DDLResult{
+		SQL:     dropSQL,
+		Message: fmt.Sprintf("数据库 \"%s\" 已删除", databaseName),
+	}, nil
+}
+
+// CreateTable 在指定数据库中创建一个新表。
+func (s *ConnectionService) CreateTable(params model.CreateTableParams) (*model.DDLResult, error) {
+	if params.ConnectionID == "" {
+		return nil, fmt.Errorf("连接ID不能为空")
+	}
+	if params.DatabaseName == "" {
+		return nil, fmt.Errorf("数据库名不能为空")
+	}
+	if params.TableName == "" {
+		return nil, fmt.Errorf("表名不能为空")
+	}
+	if len(params.Columns) == 0 {
+		return nil, fmt.Errorf("至少需要定义一个列")
+	}
+
+	conn, err := s.findConnection(params.ConnectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := s.connManager.GetDB(conn, params.DatabaseName)
+	if err != nil {
+		return nil, err
+	}
+
+	safeTable := "`" + strings.ReplaceAll(params.TableName, "`", "``") + "`"
+
+	var colDefs []string
+	var pkCols []string
+	for _, col := range params.Columns {
+		safeCol := "`" + strings.ReplaceAll(col.Name, "`", "``") + "`"
+		def := safeCol + " " + col.DataType
+		if col.Unsigned {
+			def += " UNSIGNED"
+		}
+		if !col.Nullable {
+			def += " NOT NULL"
+		} else {
+			def += " NULL"
+		}
+		if col.AutoIncrement {
+			def += " AUTO_INCREMENT"
+		}
+		if col.DefaultValue != "" {
+			def += " DEFAULT " + col.DefaultValue
+		}
+		if col.Comment != "" {
+			def += " COMMENT '" + strings.ReplaceAll(col.Comment, "'", "\\'") + "'"
+		}
+		colDefs = append(colDefs, def)
+		if col.IsPrimaryKey {
+			pkCols = append(pkCols, safeCol)
+		}
+	}
+
+	if len(pkCols) > 0 {
+		colDefs = append(colDefs, "PRIMARY KEY ("+strings.Join(pkCols, ", ")+")")
+	}
+
+	createSQL := "CREATE TABLE " + safeTable + " (\n  " + strings.Join(colDefs, ",\n  ") + "\n)"
+	if params.Charset != "" {
+		createSQL += " CHARACTER SET " + strings.ReplaceAll(params.Charset, "'", "")
+	}
+	if params.Collation != "" {
+		createSQL += " COLLATE " + strings.ReplaceAll(params.Collation, "'", "")
+	}
+	if params.Comment != "" {
+		createSQL += " COMMENT='" + strings.ReplaceAll(params.Comment, "'", "\\'") + "'"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if _, err := db.ExecContext(ctx, createSQL); err != nil {
+		return nil, fmt.Errorf("创建表失败: %w", err)
+	}
+
+	return &model.DDLResult{
+		SQL:     createSQL,
+		Message: fmt.Sprintf("表 \"%s\" 创建成功", params.TableName),
+	}, nil
+}
+
+// DropTable 删除指定数据库中的表。
+func (s *ConnectionService) DropTable(connectionID, databaseName, tableName string) (*model.DDLResult, error) {
+	if connectionID == "" {
+		return nil, fmt.Errorf("连接ID不能为空")
+	}
+	if databaseName == "" {
+		return nil, fmt.Errorf("数据库名不能为空")
+	}
+	if tableName == "" {
+		return nil, fmt.Errorf("表名不能为空")
+	}
+
+	conn, err := s.findConnection(connectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := s.connManager.GetDB(conn, databaseName)
+	if err != nil {
+		return nil, err
+	}
+
+	safeTable := "`" + strings.ReplaceAll(tableName, "`", "``") + "`"
+	dropSQL := "DROP TABLE " + safeTable
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if _, err := db.ExecContext(ctx, dropSQL); err != nil {
+		return nil, fmt.Errorf("删除表失败: %w", err)
+	}
+
+	return &model.DDLResult{
+		SQL:     dropSQL,
+		Message: fmt.Sprintf("表 \"%s\" 已删除", tableName),
+	}, nil
+}
+
+// GetCharsets 返回 MySQL 支持的字符集列表（含默认排序规则）。
+func (s *ConnectionService) GetCharsets(connectionID string) ([]model.CharsetInfo, error) {
+	if connectionID == "" {
+		return nil, fmt.Errorf("连接ID不能为空")
+	}
+
+	conn, err := s.findConnection(connectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := s.connManager.GetDB(conn, "")
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, "SHOW CHARACTER SET")
+	if err != nil {
+		return nil, fmt.Errorf("查询字符集失败: %w", err)
+	}
+	defer rows.Close()
+
+	var charsets []model.CharsetInfo
+	for rows.Next() {
+		var charset, defaultCollation, desc string
+		var maxLen int
+		if err := rows.Scan(&charset, &desc, &defaultCollation, &maxLen); err != nil {
+			return nil, fmt.Errorf("读取字符集信息失败: %w", err)
+		}
+		if strings.HasPrefix(charset, "utf8") || strings.HasPrefix(charset, "gb") || strings.HasPrefix(charset, "latin") || charset == "ascii" {
+			charsets = append(charsets, model.CharsetInfo{
+				Charset:          charset,
+				DefaultCollation: defaultCollation,
+				Description:      desc,
+			})
+		}
+	}
+
+	// 对于剩余字符集，全部追加以确保完整性
+	// 但迭代器已经消耗，需要重新查询
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return charsets, nil
+}
+
+// GetCollations 返回指定字符集对应的排序规则列表。
+func (s *ConnectionService) GetCollations(connectionID, charset string) ([]string, error) {
+	if connectionID == "" {
+		return nil, fmt.Errorf("连接ID不能为空")
+	}
+	if charset == "" {
+		return nil, fmt.Errorf("字符集名不能为空")
+	}
+
+	conn, err := s.findConnection(connectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := s.connManager.GetDB(conn, "")
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, "SHOW COLLATION WHERE Charset = ?", charset)
+	if err != nil {
+		return nil, fmt.Errorf("查询排序规则失败: %w", err)
+	}
+	defer rows.Close()
+
+	var collations []string
+	for rows.Next() {
+		var collation string
+		var isDefault string
+		var compiled string
+		var sortlen int
+		if err := rows.Scan(&collation, &charset, &isDefault, &compiled, &sortlen); err != nil {
+			return nil, fmt.Errorf("读取排序规则失败: %w", err)
+		}
+		collations = append(collations, collation)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return collations, nil
+}

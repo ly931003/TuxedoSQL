@@ -239,7 +239,7 @@ func TestGetTableData_InvalidSortOrder(t *testing.T) {
 
 func TestGetTableData_InvalidFilterColumn(t *testing.T) {
 	svc := newTestQueryService()
-	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: []model.FilterCondition{{Column: "1=1; DROP TABLE", Operator: model.OpEQ, Value: "x"}}})
+	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: &model.FilterGroup{Column: "1=1; DROP TABLE", Operator: model.OpEQ, Value: "x"}})
 	if err == nil {
 		t.Error("假连接应返回错误")
 	}
@@ -247,7 +247,7 @@ func TestGetTableData_InvalidFilterColumn(t *testing.T) {
 
 func TestGetTableData_InvalidFilterOperator(t *testing.T) {
 	svc := newTestQueryService()
-	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: []model.FilterCondition{{Column: "name", Operator: "invalid_op", Value: "x"}}})
+	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: &model.FilterGroup{Column: "name", Operator: "invalid_op", Value: "x"}})
 	if err == nil {
 		t.Error("假连接应返回错误")
 	}
@@ -318,7 +318,7 @@ func TestGetTableData_PageBoundaries(t *testing.T) {
 
 func TestGetTableData_EmptyFilters(t *testing.T) {
 	svc := newTestQueryService()
-	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_fake", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: []model.FilterCondition{}})
+	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_fake", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: nil})
 	if err == nil {
 		t.Error("假连接应返回错误（连接错误，非参数错误）")
 	}
@@ -337,7 +337,7 @@ func TestGetTableData_AllFilterOperators(t *testing.T) {
 	operators := []model.FilterOperator{model.OpEQ, model.OpNEQ, model.OpContains, model.OpGT, model.OpLT, model.OpIsNull, model.OpNotNull}
 	for _, op := range operators {
 		t.Run(string(op), func(t *testing.T) {
-			_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_fake", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: []model.FilterCondition{{Column: "name", Operator: op, Value: "test"}}})
+			_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_fake", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: &model.FilterGroup{Column: "name", Operator: op, Value: "test"}})
 			if err == nil {
 				t.Error("假连接应返回错误")
 			}

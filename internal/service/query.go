@@ -326,43 +326,14 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 	// 安全构建表名引用
 	safeTable := "`" + strings.ReplaceAll(params.Table, "`", "``") + "`"
 
-	// 构建 WHERE 子句（参数化）
-	var conditions []string
-	var args []interface{}
-	for _, f := range params.Filters {
-		if !whitelist[f.Column] {
-			return nil, fmt.Errorf("无效的筛选列名: %s", f.Column)
-		}
-		if !allowedOperators[f.Operator] {
-			return nil, fmt.Errorf("无效的筛选操作符: %s", f.Operator)
-		}
-		safeCol := "`" + strings.ReplaceAll(f.Column, "`", "``") + "`"
-		switch f.Operator {
-		case model.OpEQ:
-			conditions = append(conditions, safeCol+" = ?")
-			args = append(args, f.Value)
-		case model.OpNEQ:
-			conditions = append(conditions, safeCol+" != ?")
-			args = append(args, f.Value)
-		case model.OpContains:
-			conditions = append(conditions, safeCol+" LIKE ?")
-			args = append(args, "%"+f.Value+"%")
-		case model.OpGT:
-			conditions = append(conditions, safeCol+" > ?")
-			args = append(args, f.Value)
-		case model.OpLT:
-			conditions = append(conditions, safeCol+" < ?")
-			args = append(args, f.Value)
-		case model.OpIsNull:
-			conditions = append(conditions, safeCol+" IS NULL")
-		case model.OpNotNull:
-			conditions = append(conditions, safeCol+" IS NOT NULL")
-		}
+	// 递归构建 WHERE 子句（参数化）
+	whereSQL, args, err := buildFilterClause(params.Filters, whitelist)
+	if err != nil {
+		return nil, err
 	}
-
 	whereClause := ""
-	if len(conditions) > 0 {
-		whereClause = " WHERE " + strings.Join(conditions, " AND ")
+	if whereSQL != "" {
+		whereClause = " WHERE " + whereSQL
 	}
 
 	// 构建 ORDER BY 子句（列名已白名单校验，排序方向已校验）
@@ -467,34 +438,84 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 	}, nil
 }
 
+// buildFilterClause 递归构建参数化 WHERE 子句，支持 AND/OR 嵌套。
+// 返回 (SQL 子句, 参数切片, 错误)。根节点为 nil 时返回空串。
+func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (string, []interface{}, error) {
+	if group == nil {
+		return "", nil, nil
+	}
+	if group.IsLeaf() {
+		if !whitelist[group.Column] {
+			return "", nil, fmt.Errorf("无效的筛选列名: %s", group.Column)
+		}
+		if !allowedOperators[group.Operator] {
+			return "", nil, fmt.Errorf("无效的筛选操作符: %s", group.Operator)
+		}
+		safeCol := "`" + strings.ReplaceAll(group.Column, "`", "``") + "`"
+		switch group.Operator {
+		case model.OpEQ:
+			return safeCol + " = ?", []interface{}{group.Value}, nil
+		case model.OpNEQ:
+			return safeCol + " != ?", []interface{}{group.Value}, nil
+		case model.OpContains:
+			return safeCol + " LIKE ?", []interface{}{"%" + group.Value + "%"}, nil
+		case model.OpGT:
+			return safeCol + " > ?", []interface{}{group.Value}, nil
+		case model.OpLT:
+			return safeCol + " < ?", []interface{}{group.Value}, nil
+		case model.OpIsNull:
+			return safeCol + " IS NULL", nil, nil
+		case model.OpNotNull:
+			return safeCol + " IS NOT NULL", nil, nil
+		default:
+			return "", nil, fmt.Errorf("未知操作符: %s", group.Operator)
+		}
+	}
+
+	// 组合节点：递归构建子句
+	if len(group.Conditions) < 2 {
+		return "", nil, fmt.Errorf("组合节点至少需要 2 个子条件")
+	}
+
+	connector := " " + string(group.Logic) + " "
+	var parts []string
+	var allArgs []interface{}
+
+	for _, sub := range group.Conditions {
+		subSQL, subArgs, err := buildFilterClause(sub, whitelist)
+		if err != nil {
+			return "", nil, err
+		}
+		if subSQL == "" {
+			continue
+		}
+		wrap := false
+		if !sub.IsLeaf() && sub.Logic == model.LogicOR && group.Logic == model.LogicAND {
+			// 当 OR 嵌套在 AND 下时，加括号
+			wrap = true
+		}
+		if wrap {
+			parts = append(parts, "("+subSQL+")")
+		} else {
+			parts = append(parts, subSQL)
+		}
+		allArgs = append(allArgs, subArgs...)
+	}
+
+	if len(parts) == 0 {
+		return "", nil, nil
+	}
+	return strings.Join(parts, connector), allArgs, nil
+}
+
 // buildDisplaySQL 构建带实际参数值的可读 SELECT 语句，用于审计展示。
 func buildDisplaySQL(params model.TableDataParams, args []interface{}) string {
 	safeTable := "`" + strings.ReplaceAll(params.Table, "`", "``") + "`"
 
-	// 构建 WHERE clause — 复用与 GetTableData 相同的逻辑但内联参数值
-	var conditions []string
-	for _, f := range params.Filters {
-		safeCol := "`" + strings.ReplaceAll(f.Column, "`", "``") + "`"
-		switch f.Operator {
-		case model.OpEQ:
-			conditions = append(conditions, fmt.Sprintf("%s = %s", safeCol, displayValue(f.Value)))
-		case model.OpNEQ:
-			conditions = append(conditions, fmt.Sprintf("%s != %s", safeCol, displayValue(f.Value)))
-		case model.OpContains:
-			conditions = append(conditions, fmt.Sprintf("%s LIKE '%%%s%%'", safeCol, strings.ReplaceAll(f.Value, "'", "''")))
-		case model.OpGT:
-			conditions = append(conditions, fmt.Sprintf("%s > %s", safeCol, displayValue(f.Value)))
-		case model.OpLT:
-			conditions = append(conditions, fmt.Sprintf("%s < %s", safeCol, displayValue(f.Value)))
-		case model.OpIsNull:
-			conditions = append(conditions, safeCol+" IS NULL")
-		case model.OpNotNull:
-			conditions = append(conditions, safeCol+" IS NOT NULL")
-		}
-	}
-	whereClause := ""
-	if len(conditions) > 0 {
-		whereClause = " WHERE " + strings.Join(conditions, " AND ")
+	// 构建 WHERE clause — 递归渲染 FilterGroup 为展示 SQL
+	var whereClause string
+	if params.Filters != nil {
+		whereClause = " WHERE " + buildDisplayFilter(params.Filters)
 	}
 
 	orderClause := ""
@@ -503,8 +524,50 @@ func buildDisplaySQL(params model.TableDataParams, args []interface{}) string {
 		orderClause = " ORDER BY " + safeSortCol + " " + string(params.SortOrder)
 	}
 
+	_ = args // args contain actual values for parameterized execution, not needed for display
 	return fmt.Sprintf("SELECT * FROM %s%s%s LIMIT %d OFFSET %d",
 		safeTable, whereClause, orderClause, params.PageSize, offsetForPage(params.Page, params.PageSize))
+}
+
+// buildDisplayFilter 递归渲染 FilterGroup 为可读 SQL（值内联）。
+func buildDisplayFilter(group *model.FilterGroup) string {
+	if group == nil {
+		return ""
+	}
+	if group.IsLeaf() {
+		safeCol := "`" + strings.ReplaceAll(group.Column, "`", "``") + "`"
+		switch group.Operator {
+		case model.OpEQ:
+			return fmt.Sprintf("%s = %s", safeCol, displayValue(group.Value))
+		case model.OpNEQ:
+			return fmt.Sprintf("%s != %s", safeCol, displayValue(group.Value))
+		case model.OpContains:
+			return fmt.Sprintf("%s LIKE '%%%s%%'", safeCol, strings.ReplaceAll(group.Value, "'", "''"))
+		case model.OpGT:
+			return fmt.Sprintf("%s > %s", safeCol, displayValue(group.Value))
+		case model.OpLT:
+			return fmt.Sprintf("%s < %s", safeCol, displayValue(group.Value))
+		case model.OpIsNull:
+			return safeCol + " IS NULL"
+		case model.OpNotNull:
+			return safeCol + " IS NOT NULL"
+		}
+		return ""
+	}
+	connector := " " + string(group.Logic) + " "
+	var parts []string
+	for _, sub := range group.Conditions {
+		subSQL := buildDisplayFilter(sub)
+		if subSQL == "" {
+			continue
+		}
+		if !sub.IsLeaf() && sub.Logic == model.LogicOR && group.Logic == model.LogicAND {
+			parts = append(parts, "("+subSQL+")")
+		} else {
+			parts = append(parts, subSQL)
+		}
+	}
+	return strings.Join(parts, connector)
 }
 
 // offsetForPage 根据页码和每页条数计算偏移量。

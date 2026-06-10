@@ -76,3 +76,47 @@ type UpdateGroupParams struct {
 	Name     string `json:"name"`
 	ParentID string `json:"parentId"`
 }
+
+// CreateDatabaseParams 是创建新数据库的请求参数。
+type CreateDatabaseParams struct {
+	ConnectionID string `json:"connectionId"` // 连接ID
+	DatabaseName string `json:"databaseName"` // 新数据库名
+	Charset      string `json:"charset"`      // 字符集（如 "utf8mb4"），空表示使用 MySQL 默认值
+	Collation    string `json:"collation"`    // 排序规则（如 "utf8mb4_unicode_ci"），空表示使用 MySQL 默认值
+}
+
+// CreateTableParams 是创建新表的请求参数。
+type CreateTableParams struct {
+	ConnectionID string       `json:"connectionId"` // 连接ID
+	DatabaseName string       `json:"databaseName"` // 目标数据库名
+	TableName    string       `json:"tableName"`    // 新表名
+	Charset      string       `json:"charset"`      // 字符集
+	Collation    string       `json:"collation"`    // 排序规则
+	Comment      string       `json:"comment"`      // 表注释
+	Columns      []ColumnDef  `json:"columns"`      // 列定义
+}
+
+// ColumnDef 是建表时的一列定义。
+type ColumnDef struct {
+	Name          string `json:"name"`          // 列名
+	DataType      string `json:"dataType"`      // 数据类型（如 "INT", "VARCHAR(255)"）
+	Nullable      bool   `json:"nullable"`      // 是否可空
+	DefaultValue  string `json:"defaultValue"`  // 默认值（空串表示无默认值）
+	AutoIncrement bool   `json:"autoIncrement"` // 是否自增
+	Unsigned      bool   `json:"unsigned"`      // 是否无符号（数值类型）
+	Comment       string `json:"comment"`       // 列注释
+	IsPrimaryKey  bool   `json:"isPrimaryKey"`  // 是否主键
+}
+
+// DDLResult 是 DDL 操作的通用返回结果。
+type DDLResult struct {
+	SQL     string `json:"sql"`     // 执行的 SQL
+	Message string `json:"message"` // 操作结果消息
+}
+
+// CharsetInfo 表示 MySQL 支持的字符集及其默认排序规则。
+type CharsetInfo struct {
+	Charset         string `json:"charset"`         // 字符集名
+	DefaultCollation string `json:"defaultCollation"` // 默认排序规则
+	Description     string `json:"description"`     // 描述
+}

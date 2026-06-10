@@ -6,6 +6,8 @@ import { useQueryStore } from '../stores/query'
 import { useLayoutStore } from '../stores/layout'
 import ConnectionTree from './ConnectionTree.vue'
 import GroupDialog from './GroupDialog.vue'
+import CreateDatabaseDialog from './CreateDatabaseDialog.vue'
+import CreateTableDialog from './CreateTableDialog.vue'
 import { ConnectionService } from '../../bindings/tuxedosql/internal/service'
 import type { ConnectionGroup, Connection, TreeNode } from '../types/connection'
 
@@ -16,6 +18,12 @@ const treeCompRef = ref<InstanceType<typeof ConnectionTree> | null>(null)
 const treeData = ref<TreeNode[]>([])
 const groupDialogVisible = ref(false)
 const editingGroup = ref<{ id: string; name: string; parentId: string } | null>(null)
+const createDbVisible = ref(false)
+const createDbConnId = ref('')
+const createDbName = ref('')
+const createTableVisible = ref(false)
+const createTableConnId = ref('')
+const createTableDbName = ref('')
 
 function showToast(message: string, type: 'success' | 'error' = 'error') {
   if (type === 'success') ElMessage.success(message)
@@ -247,6 +255,42 @@ async function handleNodeDragEnd(dragging: TreeNode, target: TreeNode, dropType:
 
 defineExpose({ loadData })
 onMounted(() => loadData())
+
+// ── DDL handlers ──
+
+function handleCreateDatabase(connId: string, dbName: string) {
+  createDbConnId.value = connId
+  createDbName.value = dbName
+  createDbVisible.value = true
+}
+
+function handleCreateTable(connId: string, dbName: string) {
+  createTableConnId.value = connId
+  createTableDbName.value = dbName
+  createTableVisible.value = true
+}
+
+async function handleDropDatabase(connId: string, dbName: string) {
+  if (!confirm(`确定要删除数据库 "${dbName}" 吗？此操作不可撤销！`)) return
+  try {
+    const result = await ConnectionService.DropDatabase(connId, dbName)
+    if (result) {
+      ElMessage({ message: result.sql, type: 'warning', duration: 4000 })
+    }
+    await loadData()
+  } catch (err: unknown) { showToast(parseError(err)) }
+}
+
+async function handleDropTable(connId: string, dbName: string, tableName: string) {
+  if (!confirm(`确定要删除表 "${tableName}" 吗？此操作不可撤销！`)) return
+  try {
+    const result = await ConnectionService.DropTable(connId, dbName, tableName)
+    if (result) {
+      ElMessage({ message: result.sql, type: 'warning', duration: 4000 })
+    }
+    await loadData()
+  } catch (err: unknown) { showToast(parseError(err)) }
+}
 </script>
 
 <template>
@@ -270,6 +314,10 @@ onMounted(() => loadData())
       @edit-group="handleEditGroup"
       @delete-group="handleDeleteGroup"
       @query-table="handleQueryTable"
+      @create-database="handleCreateDatabase"
+      @create-table="handleCreateTable"
+      @drop-database="handleDropDatabase"
+      @drop-table="handleDropTable"
     />
     <GroupDialog
       :visible="groupDialogVisible"
@@ -277,6 +325,20 @@ onMounted(() => loadData())
       :groups="store.groups"
       @saved="handleGroupSaved"
       @close="groupDialogVisible = false"
+    />
+    <CreateDatabaseDialog
+      :visible="createDbVisible"
+      :connection-id="createDbConnId"
+      :database-name="createDbName"
+      @saved="createDbVisible = false; loadData()"
+      @close="createDbVisible = false"
+    />
+    <CreateTableDialog
+      :visible="createTableVisible"
+      :connection-id="createTableConnId"
+      :database-name="createTableDbName"
+      @saved="createTableVisible = false; loadData()"
+      @close="createTableVisible = false"
     />
   </div>
 </template>

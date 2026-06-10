@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { ColumnInfo } from '../types/query'
+import { ElMessage } from 'element-plus'
+import { QueryService } from '../../bindings/tuxedosql/internal/service'
+import * as models from '../../bindings/tuxedosql/internal/model/models'
+import type { ColumnInfo, FilterGroup } from '../types/query'
 
 const props = defineProps<{
   visible: boolean
@@ -10,6 +13,9 @@ const props = defineProps<{
   allRowCount: number
   currentPage: number
   pageSize: number
+  connectionId?: string
+  database?: string
+  filters?: FilterGroup
 }>()
 
 const emit = defineEmits<{
@@ -21,6 +27,7 @@ type ExportRange = 'current' | 'all'
 
 const format = ref<ExportFormat>('csv')
 const range = ref<ExportRange>('current')
+const fetching = ref(false)
 
 const columnNames = computed(() => props.columns.map(c => c.name))
 
@@ -36,11 +43,11 @@ function escapeCSV(value: unknown): string {
   return str
 }
 
-function generateCSV(): string {
+function generateCSV(rows: Record<string, unknown>[]): string {
   // BOM for Excel Chinese compatibility
   const BOM = '﻿'
   const header = columnNames.value.map(c => escapeCSV(c)).join(',')
-  const lines = props.rows.map(row =>
+  const lines = rows.map(row =>
     columnNames.value.map(c => escapeCSV(row[c])).join(',')
   )
   return BOM + [header, ...lines].join('\n')
@@ -55,28 +62,82 @@ function sqlValue(val: unknown): string {
   return "'" + String(val).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'"
 }
 
-function generateSQL(): string {
+function generateSQL(rows: Record<string, unknown>[]): string {
   const cols = columnNames.value.map(c => '`' + c + '`').join(', ')
-  const lines = props.rows.map(row => {
+  const lines = rows.map(row => {
     const vals = columnNames.value.map(c => sqlValue(row[c])).join(', ')
     return `INSERT INTO \`${props.tableName}\` (${cols}) VALUES (${vals});`
   })
   return lines.join('\n') + '\n'
 }
 
+// ── Fetch all rows via paginated backend calls ──
+
+async function fetchAllRows(): Promise<Record<string, unknown>[]> {
+  if (!props.connectionId || !props.database) {
+    // Fallback: can't reach backend, use current page
+    return [...props.rows]
+  }
+
+  const FETCH_SIZE = 2000
+  const MAX_TOTAL = 10000
+  const allRows: Record<string, unknown>[] = []
+  let page = 1
+
+  while (allRows.length < MAX_TOTAL) {
+    try {
+      const params = new models.TableDataParams({
+        connectionId: props.connectionId,
+        database: props.database,
+        table: props.tableName,
+        page,
+        pageSize: FETCH_SIZE,
+        sortColumn: '',
+        sortOrder: models.SortOrder.SortASC,
+        filters: props.filters ? new models.FilterGroup(props.filters) : null,
+      })
+      const result = await QueryService.GetTableData(params)
+      if (!result || result.rows.length === 0) break
+
+      allRows.push(...result.rows)
+      if (result.rows.length < FETCH_SIZE || allRows.length >= result.total) break
+      page++
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      ElMessage({ message: `获取全部数据失败: ${msg}`, type: 'error' })
+      return [...props.rows]
+    }
+  }
+
+  if (allRows.length >= MAX_TOTAL) {
+    ElMessage({ message: `已达导出上限 ${MAX_TOTAL} 行`, type: 'warning', duration: 3000 })
+  }
+  return allRows
+}
+
 // ── Download ──
 
-function handleExport() {
+async function handleExport() {
+  let rows: Record<string, unknown>[]
+
+  if (range.value === 'all') {
+    fetching.value = true
+    rows = await fetchAllRows()
+    fetching.value = false
+  } else {
+    rows = props.rows
+  }
+
   let content: string
   let mime: string
   let ext: string
 
   if (format.value === 'csv') {
-    content = generateCSV()
+    content = generateCSV(rows)
     mime = 'text/csv;charset=utf-8'
     ext = 'csv'
   } else {
-    content = generateSQL()
+    content = generateSQL(rows)
     mime = 'text/plain;charset=utf-8'
     ext = 'sql'
   }
@@ -143,7 +204,9 @@ const rangeInfo = computed(() => {
 
     <template #footer>
       <button class="export-btn export-btn--cancel" @click="emit('close')">取消</button>
-      <button class="export-btn export-btn--confirm" @click="handleExport">导出</button>
+      <button class="export-btn export-btn--confirm" :disabled="fetching" @click="handleExport">
+        {{ fetching ? '获取中...' : '导出' }}
+      </button>
     </template>
   </el-dialog>
 </template>
