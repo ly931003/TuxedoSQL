@@ -202,3 +202,41 @@ Building with `-tags server` produces a headless HTTP server binary (no native G
 ### Cross-Platform Build
 
 The `build/` directory contains platform-specific subdirectories (`darwin/`, `windows/`, `linux/`, `ios/`, `android/`) with platform Taskfiles. Use `task setup:docker` to build the cross-compilation Docker image, then `task build` to cross-compile for any platform.
+
+## Testing & Quality
+
+### Frontend
+
+```bash
+npm run typecheck      # TypeScript type checking (vue-tsc)
+npm run lint           # ESLint (0 errors, pre-existing warnings only)
+npm test               # Vitest (53 tests, 7 suites)
+npm run test:watch     # Vitest watch mode
+npm run test:coverage  # Vitest with coverage
+```
+
+### Go Backend
+
+```bash
+go test ./... -count=1          # Run all Go tests (120+ tests, all pass)
+go test -race ./...              # Run with race detection
+go vet ./...                     # Vet (clean)
+golangci-lint run ./...          # Lint (requires golangci-lint installed)
+```
+
+### Taskfile Commands
+
+```bash
+task test:go         # Run all Go tests
+task test:go:race    # Go tests with race detection
+task test:go:cover   # Coverage report
+task test:frontend   # Vitest frontend tests
+task lint:go         # golangci-lint
+task lint:frontend   # ESLint
+task typecheck       # TypeScript type checking
+task check           # All checks (lint + test + typecheck)
+```
+
+### CI
+
+GitHub Actions CI at `.github/workflows/ci.yml` runs: lint-go, test-go, typecheck, lint-frontend, test-frontend on push/PR to master/main.
