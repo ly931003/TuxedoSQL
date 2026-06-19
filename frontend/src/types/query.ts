@@ -8,6 +8,7 @@ import type {
   PageResult,
   UpdateRowParams,
   UpdateRowResult,
+  DBSchemaForCompletion,
 } from '../../bindings/tuxedosql/internal/model/models'
 import { SortOrder, FilterOperator, LogicOp } from '../../bindings/tuxedosql/internal/model/models'
 
@@ -21,6 +22,7 @@ export type {
   PageResult,
   UpdateRowParams,
   UpdateRowResult,
+  DBSchemaForCompletion,
 }
 export { SortOrder, FilterOperator, LogicOp }
 

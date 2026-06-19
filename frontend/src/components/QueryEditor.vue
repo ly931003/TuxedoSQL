@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import SqlEditor from './SqlEditor.vue'
+import type { DBSchemaForCompletion } from '../types/query'
 
 const props = defineProps<{
   modelValue: string
   isExecuting: boolean
   database: string
+  schema?: DBSchemaForCompletion | null
 }>()
 
 const emit = defineEmits<{
@@ -52,6 +54,7 @@ defineExpose({ focus })
         :model-value="modelValue"
         :is-executing="isExecuting"
         :database="database"
+        :schema="schema"
         @update:model-value="emit('update:modelValue', $event)"
         @execute="emit('execute')"
         @stop="emit('stop')"
