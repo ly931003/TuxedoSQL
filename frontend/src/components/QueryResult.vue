@@ -580,5 +580,3 @@ watch(() => props.editingCell, (newVal) => {
   color: var(--color-text);
 }
 </style>
-VUEOOF
-echo "QueryResult.vue written"
