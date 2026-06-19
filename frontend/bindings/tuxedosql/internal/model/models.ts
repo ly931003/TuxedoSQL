@@ -485,6 +485,50 @@ export class CreateTableParams {
 }
 
 /**
+ * DBSchemaForCompletion 是用于 SQL 自动补全的数据库 schema 快照。
+ * Tables 仅包含 BASE TABLE 及其列名列表，Views 单独保存视图名列表。
+ */
+export class DBSchemaForCompletion {
+    /**
+     * 表名 → 列名列表
+     */
+    "tables": { [_ in string]?: string[] };
+
+    /**
+     * 视图名列表
+     */
+    "views": string[];
+
+    /** Creates a new DBSchemaForCompletion instance. */
+    constructor($$source: Partial<DBSchemaForCompletion> = {}) {
+        if (!("tables" in $$source)) {
+            this["tables"] = {};
+        }
+        if (!("views" in $$source)) {
+            this["views"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBSchemaForCompletion instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBSchemaForCompletion {
+        const $$createField0_0 = $$createType3;
+        const $$createField1_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tables" in $$parsedSource) {
+            $$parsedSource["tables"] = $$createField0_0($$parsedSource["tables"]);
+        }
+        if ("views" in $$parsedSource) {
+            $$parsedSource["views"] = $$createField1_0($$parsedSource["views"]);
+        }
+        return new DBSchemaForCompletion($$parsedSource as Partial<DBSchemaForCompletion>);
+    }
+}
+
+/**
  * DDLResult 是 DDL 操作的通用返回结果。
  */
 export class DDLResult {
@@ -574,7 +618,7 @@ export class FilterGroup {
      * Creates a new FilterGroup instance from a string or object.
      */
     static createFrom($$source: any = {}): FilterGroup {
-        const $$createField1_0 = $$createType4;
+        const $$createField1_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("conditions" in $$parsedSource) {
             $$parsedSource["conditions"] = $$createField1_0($$parsedSource["conditions"]);
@@ -708,8 +752,8 @@ export class PageResult {
      * Creates a new PageResult instance from a string or object.
      */
     static createFrom($$source: any = {}): PageResult {
-        const $$createField0_0 = $$createType6;
-        const $$createField1_0 = $$createType8;
+        const $$createField0_0 = $$createType8;
+        const $$createField1_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
@@ -783,8 +827,8 @@ export class QueryResult {
      * Creates a new QueryResult instance from a string or object.
      */
     static createFrom($$source: any = {}): QueryResult {
-        const $$createField0_0 = $$createType6;
-        const $$createField1_0 = $$createType8;
+        const $$createField0_0 = $$createType8;
+        const $$createField1_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
@@ -960,7 +1004,7 @@ export class TableDataParams {
      * Creates a new TableDataParams instance from a string or object.
      */
     static createFrom($$source: any = {}): TableDataParams {
-        const $$createField7_0 = $$createType3;
+        const $$createField7_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("filters" in $$parsedSource) {
             $$parsedSource["filters"] = $$createField7_0($$parsedSource["filters"]);
@@ -1211,7 +1255,7 @@ export class UpdateRowParams {
      * Creates a new UpdateRowParams instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateRowParams {
-        const $$createField3_0 = $$createType7;
+        const $$createField3_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pkValues" in $$parsedSource) {
             $$parsedSource["pkValues"] = $$createField3_0($$parsedSource["pkValues"]);
@@ -1266,10 +1310,12 @@ export class UpdateRowResult {
 // Private type creation functions
 const $$createType0 = ColumnDef.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = FilterGroup.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = ColumnInfo.createFrom;
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $Create.Map($Create.Any, $$createType2);
+const $$createType4 = FilterGroup.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $Create.Map($Create.Any, $Create.Any);
+const $$createType7 = ColumnInfo.createFrom;
 const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $Create.Map($Create.Any, $Create.Any);
+const $$createType10 = $Create.Array($$createType9);

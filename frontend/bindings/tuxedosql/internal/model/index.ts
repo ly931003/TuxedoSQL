@@ -11,6 +11,7 @@ export {
     CreateDatabaseParams,
     CreateGroupParams,
     CreateTableParams,
+    DBSchemaForCompletion,
     DDLResult,
     FilterGroup,
     FilterOperator,

@@ -31,13 +31,23 @@ export function GetCreateTable(connectionID: string, database: string, table: st
 }
 
 /**
+ * GetDBSchemaForCompletion 返回指定数据库的所有表和视图及其列信息，用于前端的 SQL 自动补全。
+ * 内部仅查询 INFORMATION_SCHEMA，不发送任何其他 SQL。
+ */
+export function GetDBSchemaForCompletion(connectionID: string, database: string): $CancellablePromise<model$0.DBSchemaForCompletion | null> {
+    return $Call.ByID(3032534607, connectionID, database).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * GetTableData 执行分页查询，支持排序和筛选。
  * 列名（SortColumn、Filter.Column）通过 INFORMATION_SCHEMA 白名单校验，防止 SQL 注入。
  * 筛选值使用参数化查询（? 占位符），仅操作符通过白名单校验后拼入 SQL。
  */
 export function GetTableData(params: model$0.TableDataParams): $CancellablePromise<model$0.PageResult | null> {
     return $Call.ByID(1395690629, params).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -47,7 +57,7 @@ export function GetTableData(params: model$0.TableDataParams): $CancellablePromi
  */
 export function GetTableSchema(connectionID: string, database: string, table: string): $CancellablePromise<model$0.TableSchema[]> {
     return $Call.ByID(2701588246, connectionID, database, table).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -56,7 +66,7 @@ export function GetTableSchema(connectionID: string, database: string, table: st
  */
 export function LoadTabs(): $CancellablePromise<model$0.TabState[]> {
     return $Call.ByID(3103459061).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -74,18 +84,20 @@ export function SaveTabs(tabs: model$0.TabState[]): $CancellablePromise<void> {
  */
 export function UpdateRow(params: model$0.UpdateRowParams): $CancellablePromise<model$0.UpdateRowResult | null> {
     return $Call.ByID(2687332596, params).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = model$0.QueryResult.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = model$0.PageResult.createFrom;
+const $$createType2 = model$0.DBSchemaForCompletion.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = model$0.TableSchema.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = model$0.TabState.createFrom;
+const $$createType4 = model$0.PageResult.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = model$0.TableSchema.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = model$0.UpdateRowResult.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
+const $$createType8 = model$0.TabState.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = model$0.UpdateRowResult.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
