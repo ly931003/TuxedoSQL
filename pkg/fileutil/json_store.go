@@ -31,7 +31,7 @@ func (s *JSONStore) ConfigDir() string {
 }
 
 // Load 从指定文件反序列化 JSON 到 dest。文件不存在时返回 nil（不报错）。
-func (s *JSONStore) Load(filename string, dest interface{}) error {
+func (s *JSONStore) Load(filename string, dest any) error {
 	path := filepath.Join(s.dir, filename)
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -47,7 +47,7 @@ func (s *JSONStore) Load(filename string, dest interface{}) error {
 }
 
 // Save 将 data 序列化为格式化的 JSON 并写入文件。目录不存在时自动创建。
-func (s *JSONStore) Save(filename string, data interface{}) error {
+func (s *JSONStore) Save(filename string, data any) error {
 	path := filepath.Join(s.dir, filename)
 	if err := os.MkdirAll(s.dir, 0700); err != nil {
 		return fmt.Errorf("创建目录 %s: %w", s.dir, err)

@@ -98,8 +98,8 @@ func (s *QueryService) executeQuery(ctx context.Context, db *sql.DB, sqlStmt str
 			break
 		}
 
-		values := make([]interface{}, len(columns))
-		valuePtrs := make([]interface{}, len(columns))
+		values := make([]any, len(columns))
+		valuePtrs := make([]any, len(columns))
 		for i := range values {
 			valuePtrs[i] = &values[i]
 		}
@@ -353,7 +353,7 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 	defer cancel2()
 
 	var total int64
-	countArgs := make([]interface{}, len(args))
+	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	if err := db.QueryRowContext(ctx2, countQuery, countArgs...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("查询总数失败: %w", err)
@@ -366,7 +366,7 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 	ctx3, cancel3 := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel3()
 
-	dataArgs := make([]interface{}, len(args))
+	dataArgs := make([]any, len(args))
 	copy(dataArgs, args)
 	dataArgs = append(dataArgs, params.PageSize, offset)
 
@@ -391,8 +391,8 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 
 	var dataRows []map[string]any
 	for rows.Next() {
-		values := make([]interface{}, len(columns))
-		valuePtrs := make([]interface{}, len(columns))
+		values := make([]any, len(columns))
+		valuePtrs := make([]any, len(columns))
 		for i := range values {
 			valuePtrs[i] = &values[i]
 		}
@@ -442,7 +442,7 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 
 // buildFilterClause 递归构建参数化 WHERE 子句，支持 AND/OR 嵌套。
 // 返回 (SQL 子句, 参数切片, 错误)。根节点为 nil 时返回空串。
-func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (string, []interface{}, error) {
+func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (string, []any, error) {
 	if group == nil {
 		return "", nil, nil
 	}
@@ -456,15 +456,15 @@ func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (str
 		safeCol := "`" + strings.ReplaceAll(group.Column, "`", "``") + "`"
 		switch group.Operator {
 		case model.OpEQ:
-			return safeCol + " = ?", []interface{}{group.Value}, nil
+			return safeCol + " = ?", []any{group.Value}, nil
 		case model.OpNEQ:
-			return safeCol + " != ?", []interface{}{group.Value}, nil
+			return safeCol + " != ?", []any{group.Value}, nil
 		case model.OpContains:
-			return safeCol + " LIKE ?", []interface{}{"%" + group.Value + "%"}, nil
+			return safeCol + " LIKE ?", []any{"%" + group.Value + "%"}, nil
 		case model.OpGT:
-			return safeCol + " > ?", []interface{}{group.Value}, nil
+			return safeCol + " > ?", []any{group.Value}, nil
 		case model.OpLT:
-			return safeCol + " < ?", []interface{}{group.Value}, nil
+			return safeCol + " < ?", []any{group.Value}, nil
 		case model.OpIsNull:
 			return safeCol + " IS NULL", nil, nil
 		case model.OpNotNull:
@@ -484,7 +484,7 @@ func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (str
 
 	connector := " " + string(group.Logic) + " "
 	var parts []string
-	var allArgs []interface{}
+	var allArgs []any
 
 	for _, sub := range group.Conditions {
 		subSQL, subArgs, err := buildFilterClause(sub, whitelist)
@@ -514,7 +514,7 @@ func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (str
 }
 
 // buildDisplaySQL 构建带实际参数值的可读 SELECT 语句，用于审计展示。
-func buildDisplaySQL(params model.TableDataParams, args []interface{}) string {
+func buildDisplaySQL(params model.TableDataParams, args []any) string {
 	safeTable := "`" + strings.ReplaceAll(params.Table, "`", "``") + "`"
 
 	// 构建 WHERE clause — 递归渲染 FilterGroup 为展示 SQL
@@ -584,7 +584,7 @@ func offsetForPage(page, pageSize int) int {
 }
 
 // displayValue 将一个值格式化为 SQL 展示字符串（单引号包裹字符串，数字直接展示）。
-func displayValue(v interface{}) string {
+func displayValue(v any) string {
 	if v == nil {
 		return "NULL"
 	}
@@ -645,7 +645,7 @@ func (s *QueryService) UpdateRow(params model.UpdateRowParams) (*model.UpdateRow
 	safeCol := "`" + strings.ReplaceAll(params.Column, "`", "``") + "`"
 
 	var whereParts []string
-	var args []interface{}
+	var args []any
 	args = append(args, params.NewValue) // SET 值放第一个
 
 	for pkCol, pkVal := range params.PkValues {
