@@ -1,0 +1,6 @@
+frontend/bindings/
+frontend/dist/
+frontend/node_modules/
+bin/
+.task/
+*.lock

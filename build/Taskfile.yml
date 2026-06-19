@@ -353,3 +353,54 @@ tasks:
         xcrun devicectl device install app --device "{{.UDID}}" "$APP_PATH"
         echo "Launching: {{.BUNDLE_ID}}"
         xcrun devicectl device process launch --device "{{.UDID}}" --stderr console --stdout console "{{.BUNDLE_ID}}"
+
+
+  lint:go:
+    summary: Run golangci-lint on Go source
+    cmds:
+      - golangci-lint run ./...
+
+  test:go:
+    summary: Run all Go tests
+    cmds:
+      - go test ./... -v -count=1
+
+  test:go:cover:
+    summary: Run Go tests with coverage report
+    cmds:
+      - go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out
+
+  test:go:race:
+    summary: Run Go tests with race detection
+    cmds:
+      - go test -race ./... -count=1
+
+  lint:frontend:
+    summary: Lint frontend source with ESLint
+    cmds:
+      - task: frontend:run
+        vars:
+          SCRIPT: lint
+
+  test:frontend:
+    summary: Run frontend tests with Vitest
+    cmds:
+      - task: frontend:run
+        vars:
+          SCRIPT: test
+
+  typecheck:
+    summary: Run TypeScript type checking
+    cmds:
+      - task: frontend:run
+        vars:
+          SCRIPT: typecheck
+
+  check:
+    summary: Run all checks (lint + test + typecheck)
+    deps:
+      - task: lint:go
+      - task: test:go
+      - task: typecheck
+      - task: lint:frontend
+      - task: test:frontend
