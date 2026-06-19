@@ -137,3 +137,10 @@ type UpdateRowResult struct {
 	Message      string `json:"message"`      // 操作结果消息
 	SQL          string `json:"sql"`          // 执行的 SQL（用于审计）
 }
+
+// DBSchemaForCompletion 是用于 SQL 自动补全的数据库 schema 快照。
+// Tables 仅包含 BASE TABLE 及其列名列表，Views 单独保存视图名列表。
+type DBSchemaForCompletion struct {
+	Tables map[string][]string `json:"tables"` // 表名 → 列名列表
+	Views  []string            `json:"views"`  // 视图名列表
+}

@@ -52,19 +52,21 @@ func (s *QueryService) Execute(connectionID, database, sqlStmt string) (*model.Q
 	start := time.Now()
 
 	trimmed := strings.TrimSpace(sqlStmt)
-	upper := strings.ToUpper(trimmed)
 
-	isQuery := strings.HasPrefix(upper, "SELECT") ||
+	if isQueryStatement(trimmed) {
+		return s.executeQuery(ctx, db, trimmed, start)
+	}
+	return s.executeExec(ctx, db, trimmed, start)
+}
+
+func isQueryStatement(sqlStmt string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(sqlStmt))
+	return strings.HasPrefix(upper, "SELECT") ||
 		strings.HasPrefix(upper, "SHOW") ||
 		strings.HasPrefix(upper, "DESCRIBE") ||
 		strings.HasPrefix(upper, "EXPLAIN") ||
 		strings.HasPrefix(upper, "DESC") ||
 		strings.HasPrefix(upper, "WITH")
-
-	if isQuery {
-		return s.executeQuery(ctx, db, trimmed, start)
-	}
-	return s.executeExec(ctx, db, trimmed, start)
 }
 
 func (s *QueryService) executeQuery(ctx context.Context, db *sql.DB, sqlStmt string, start time.Time) (*model.QueryResult, error) {
@@ -476,6 +478,9 @@ func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (str
 	if len(group.Conditions) < 2 {
 		return "", nil, fmt.Errorf("组合节点至少需要 2 个子条件")
 	}
+	if group.Logic != model.LogicAND && group.Logic != model.LogicOR {
+		return "", nil, fmt.Errorf("无效的组合逻辑: %s", group.Logic)
+	}
 
 	connector := " " + string(group.Logic) + " "
 	var parts []string
@@ -714,4 +719,101 @@ func buildAuditSQL(table, col string, newValue any, pkValues map[string]any) str
 	}
 
 	return fmt.Sprintf("UPDATE %s SET %s = %s WHERE %s;", table, col, setVal, strings.Join(whereParts, " AND "))
+}
+
+// GetDBSchemaForCompletion 返回指定数据库的所有表和视图及其列信息，用于前端的 SQL 自动补全。
+// 内部仅查询 INFORMATION_SCHEMA，不发送任何其他 SQL。
+func (s *QueryService) GetDBSchemaForCompletion(connectionID, database string) (*model.DBSchemaForCompletion, error) {
+	if connectionID == "" {
+		return nil, fmt.Errorf("连接ID不能为空")
+	}
+	if database == "" {
+		return nil, fmt.Errorf("数据库名不能为空")
+	}
+
+	_, db, err := s.connManager.GetDBByID(connectionID, database)
+	if err != nil {
+		return nil, err
+	}
+
+	listCtx, listCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer listCancel()
+
+	// 查询表名和视图名 + 列信息：IGNORE_SCHEMA 过滤 information_schema/performance_schema/mysql
+	query := `SELECT TABLE_NAME, TABLE_TYPE
+		FROM INFORMATION_SCHEMA.TABLES
+		WHERE TABLE_SCHEMA = ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+		ORDER BY TABLE_NAME`
+
+	rows, err := db.QueryContext(listCtx, query, database)
+	if err != nil {
+		return nil, fmt.Errorf("查询表列表失败: %w", err)
+	}
+	defer rows.Close()
+
+	type tblEntry struct {
+		Name string
+		Type string
+	}
+	var entries []tblEntry
+	for rows.Next() {
+		var e tblEntry
+		if err := rows.Scan(&e.Name, &e.Type); err != nil {
+			return nil, fmt.Errorf("读取表信息失败: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历表列表失败: %w", err)
+	}
+
+	if len(entries) == 0 {
+		return &model.DBSchemaForCompletion{
+			Tables: make(map[string][]string),
+			Views:  []string{},
+		}, nil
+	}
+
+	schema := &model.DBSchemaForCompletion{
+		Tables: make(map[string][]string, len(entries)),
+		Views:  []string{},
+	}
+
+	for _, e := range entries {
+		if e.Type == "VIEW" {
+			schema.Views = append(schema.Views, e.Name)
+		} else {
+			schema.Tables[e.Name] = nil // 先占位，列信息单独查询
+		}
+	}
+
+	// 批量查询所有列信息
+	colsQuery := `SELECT TABLE_NAME, COLUMN_NAME
+		FROM INFORMATION_SCHEMA.COLUMNS
+		WHERE TABLE_SCHEMA = ?
+		ORDER BY TABLE_NAME, ORDINAL_POSITION`
+
+	colsCtx, colsCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer colsCancel()
+
+	colRows, err := db.QueryContext(colsCtx, colsQuery, database)
+	if err != nil {
+		return nil, fmt.Errorf("查询列信息失败: %w", err)
+	}
+	defer colRows.Close()
+
+	for colRows.Next() {
+		var tbl, col string
+		if err := colRows.Scan(&tbl, &col); err != nil {
+			return nil, fmt.Errorf("读取列信息失败: %w", err)
+		}
+		if _, ok := schema.Tables[tbl]; ok {
+			schema.Tables[tbl] = append(schema.Tables[tbl], col)
+		}
+	}
+	if err := colRows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历列信息失败: %w", err)
+	}
+
+	return schema, nil
 }

@@ -24,49 +24,38 @@ func TestQueryService_Execute_Validation(t *testing.T) {
 		connectionID string
 		database     string
 		sql          string
-		wantErr      bool
 	}{
 		{
 			name:         "空连接ID应报错",
 			connectionID: "",
 			database:     "test",
 			sql:          "SELECT 1",
-			wantErr:      true,
 		},
 		{
 			name:         "空SQL应报错",
 			connectionID: "conn_test",
 			database:     "test",
 			sql:          "",
-			wantErr:      true,
 		},
 		{
 			name:         "空白SQL应报错",
 			connectionID: "conn_test",
 			database:     "test",
 			sql:          "   ",
-			wantErr:      true,
 		},
 		{
 			name:         "空数据库名应报错",
 			connectionID: "conn_test",
 			database:     "",
 			sql:          "SELECT 1",
-			wantErr:      true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := svc.Execute(tt.connectionID, tt.database, tt.sql)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("期望返回错误，但没有")
-				}
-				return
-			}
-			if err != nil {
-				t.Errorf("不期望错误，但返回了: %v", err)
+			if err == nil {
+				t.Error("期望返回错误，但没有")
 			}
 		})
 	}
@@ -127,31 +116,94 @@ func TestQueryService_LoadTabs_EmptyFile(t *testing.T) {
 }
 
 func TestQueryService_IsQueryDetection(t *testing.T) {
-	svc := newTestQueryService()
-	isQueryTests := []struct {
-		sql     string
-		isQuery bool
+	tests := []struct {
+		name     string
+		sql      string
+		isQuery  bool
 	}{
-		{"SELECT * FROM users", true},
-		{"select * from users", true},
-		{"SHOW DATABASES", true},
-		{"show tables", true},
-		{"DESCRIBE users", true},
-		{"DESC users", true},
-		{"EXPLAIN SELECT 1", true},
-		{"WITH cte AS (SELECT 1) SELECT * FROM cte", true},
-		{"INSERT INTO users VALUES (1)", false},
-		{"UPDATE users SET name='test'", false},
-		{"DELETE FROM users", false},
-		{"CREATE TABLE test (id INT)", false},
-		{"DROP TABLE test", false},
-		{"ALTER TABLE test ADD COLUMN name VARCHAR(255)", false},
+		{name: "SELECT", sql: "SELECT * FROM users", isQuery: true},
+		{name: "select lowercase", sql: "select * from users", isQuery: true},
+		{name: "SHOW", sql: "SHOW DATABASES", isQuery: true},
+		{name: "show lowercase", sql: "show tables", isQuery: true},
+		{name: "DESCRIBE", sql: "DESCRIBE users", isQuery: true},
+		{name: "DESC", sql: "DESC users", isQuery: true},
+		{name: "EXPLAIN", sql: "EXPLAIN SELECT 1", isQuery: true},
+		{name: "WITH", sql: "WITH cte AS (SELECT 1) SELECT * FROM cte", isQuery: true},
+		{name: "leading whitespace", sql: "  \n\tSELECT 1", isQuery: true},
+		{name: "INSERT", sql: "INSERT INTO users VALUES (1)", isQuery: false},
+		{name: "UPDATE", sql: "UPDATE users SET name='test'", isQuery: false},
+		{name: "DELETE", sql: "DELETE FROM users", isQuery: false},
+		{name: "CREATE", sql: "CREATE TABLE test (id INT)", isQuery: false},
+		{name: "DROP", sql: "DROP TABLE test", isQuery: false},
+		{name: "ALTER", sql: "ALTER TABLE test ADD COLUMN name VARCHAR(255)", isQuery: false},
 	}
-	for _, tt := range isQueryTests {
-		t.Run(tt.sql, func(t *testing.T) {
-			_ = svc
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isQueryStatement(tt.sql); got != tt.isQuery {
+				t.Errorf("isQueryStatement(%q) = %v, 期望 %v", tt.sql, got, tt.isQuery)
+			}
 		})
 	}
+}
+
+func TestBuildFilterClause_GroupValidation(t *testing.T) {
+	whitelist := map[string]bool{
+		"name":   true,
+		"status": true,
+		"age":    true,
+	}
+
+	t.Run("无效组合逻辑应报错", func(t *testing.T) {
+		_, _, err := buildFilterClause(&model.FilterGroup{
+			Logic: "XOR",
+			Conditions: []*model.FilterGroup{
+				{Column: "name", Operator: model.OpEQ, Value: "alice"},
+				{Column: "status", Operator: model.OpEQ, Value: "active"},
+			},
+		}, whitelist)
+		if err == nil {
+			t.Fatal("期望返回错误，但没有")
+		}
+	})
+
+	t.Run("子条件不足两个应报错", func(t *testing.T) {
+		_, _, err := buildFilterClause(&model.FilterGroup{
+			Logic: model.LogicAND,
+			Conditions: []*model.FilterGroup{
+				{Column: "name", Operator: model.OpEQ, Value: "alice"},
+			},
+		}, whitelist)
+		if err == nil {
+			t.Fatal("期望返回错误，但没有")
+		}
+	})
+
+	t.Run("AND 下嵌套 OR 应添加括号", func(t *testing.T) {
+		sql, args, err := buildFilterClause(&model.FilterGroup{
+			Logic: model.LogicAND,
+			Conditions: []*model.FilterGroup{
+				{Column: "status", Operator: model.OpEQ, Value: "active"},
+				{
+					Logic: model.LogicOR,
+					Conditions: []*model.FilterGroup{
+						{Column: "name", Operator: model.OpEQ, Value: "alice"},
+						{Column: "age", Operator: model.OpGT, Value: "18"},
+					},
+				},
+			},
+		}, whitelist)
+		if err != nil {
+			t.Fatalf("不期望错误，但返回了: %v", err)
+		}
+		wantSQL := "`status` = ? AND (`name` = ? OR `age` > ?)"
+		if sql != wantSQL {
+			t.Fatalf("SQL = %q, 期望 %q", sql, wantSQL)
+		}
+		if len(args) != 3 {
+			t.Fatalf("args 长度 = %d, 期望 3", len(args))
+		}
+	})
 }
 
 func TestQueryService_GetTableSchema_Validation(t *testing.T) {
@@ -430,5 +482,36 @@ func TestQueryService_UpdateRow_InvalidPkColumn(t *testing.T) {
 	_, err := svc.UpdateRow(model.UpdateRowParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Column: "name", PkValues: map[string]any{"1=1; DROP": 1}, NewValue: "test"})
 	if err == nil {
 		t.Error("SQL注入主键列名应返回错误")
+	}
+}
+
+func TestQueryService_GetDBSchemaForCompletion_Validation(t *testing.T) {
+	svc := newTestQueryService()
+	tests := []struct {
+		name         string
+		connectionID string
+		database     string
+		wantErr      bool
+	}{
+		{name: "空连接ID应报错", connectionID: "", database: "testdb", wantErr: true},
+		{name: "空数据库名应报错", connectionID: "conn_test", database: "", wantErr: true},
+		{name: "假连接应报错", connectionID: "conn_fake", database: "testdb", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schema, err := svc.GetDBSchemaForCompletion(tt.connectionID, tt.database)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("期望返回错误，但没有")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("意外错误: %v", err)
+			}
+			if schema == nil {
+				t.Error("schema 不应为 nil")
+			}
+		})
 	}
 }
