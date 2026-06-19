@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { QueryService } from '../../bindings/tuxedosql/internal/service'
+import { parseError } from '../composables/parseError'
 
 const props = defineProps<{
   connectionId: string
@@ -18,7 +19,11 @@ async function loadDDL() {
   loading.value = true
   error.value = ''
   try {
-    ddl.value = await QueryService.GetCreateTable(props.connectionId, props.database, props.tableName)
+    ddl.value = await QueryService.GetCreateTable(
+      props.connectionId,
+      props.database,
+      props.tableName,
+    )
   } catch (err: unknown) {
     error.value = parseError(err)
   } finally {
@@ -26,20 +31,16 @@ async function loadDDL() {
   }
 }
 
-function parseError(err: unknown): string {
-  if (err instanceof Error) {
-    try { const p = JSON.parse(err.message); if (p?.message) return String(p.message) } catch {}
-    return err.message
-  }
-  return String(err)
-}
-
 async function copyDDL() {
   try {
     await navigator.clipboard.writeText(ddl.value)
     copied.value = true
-    setTimeout(() => { copied.value = false }, 1500)
-  } catch { /* fallback not available */ }
+    setTimeout(() => {
+      copied.value = false
+    }, 1500)
+  } catch {
+    /* fallback not available */
+  }
 }
 
 onMounted(loadDDL)

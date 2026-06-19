@@ -11,6 +11,7 @@ import TableView from './TableView.vue'
 import TableInfoPanel from './TableInfoPanel.vue'
 import TableDDLPanel from './TableDDLPanel.vue'
 import type { DBSchemaForCompletion } from '../types/query'
+import { parseError } from '../composables/parseError'
 
 const store = useQueryStore()
 const layoutStore = useLayoutStore()
@@ -48,7 +49,11 @@ function getCachedSchema(cacheKey: string): DBSchemaForCompletion | undefined {
   return cached.data
 }
 
-async function fetchSchema(connectionId: string, database: string, options: { force?: boolean } = {}): Promise<DBSchemaForCompletion | null> {
+async function fetchSchema(
+  connectionId: string,
+  database: string,
+  options: { force?: boolean } = {},
+): Promise<DBSchemaForCompletion | null> {
   if (!connectionId || !database) return null
 
   const cacheKey = `${connectionId}:${database}`
@@ -155,7 +160,7 @@ function handleRenameKeydown(e: KeyboardEvent, tabId: string) {
 // ── Query execution ──
 
 async function handleExecute(tabId: string) {
-  const tab = store.tabs.find(t => t.id === tabId)
+  const tab = store.tabs.find((t) => t.id === tabId)
   if (!tab || tab.isExecuting) return
 
   store.setExecuting(tabId, true)
@@ -186,30 +191,21 @@ function handleStop(tabId: string) {
   store.setExecuting(tabId, false)
 }
 
-function parseError(err: unknown): string {
-  if (err instanceof Error) {
-    try { const p = JSON.parse(err.message); if (p?.message) return String(p.message) } catch { /* ignore */ }
-    return err.message
-  }
-  if (err && typeof err === 'object') {
-    const msg = (err as Record<string, unknown>).message
-    if (typeof msg === 'string') return msg
-  }
-  const raw = String(err)
-  try { const p = JSON.parse(raw); if (p?.message) return String(p.message) } catch { /* ignore */ }
-  return raw
-}
-
 // ── Tab persistence ──
 
 async function saveTabs() {
   try {
     await QueryService.SaveTabs(store.tabStates)
-  } catch { /* fire and forget */ }
+  } catch {
+    /* fire and forget */
+  }
 }
 
 watch(() => store.tabs.length, saveTabs)
-watch(() => store.tabs.map(t => t.title + t.sql + t.connectionId + t.database).join('|'), saveTabs)
+watch(
+  () => store.tabs.map((t) => t.title + t.sql + t.connectionId + t.database).join('|'),
+  saveTabs,
+)
 
 onMounted(async () => {
   try {
@@ -224,7 +220,9 @@ onMounted(async () => {
         })
       }
     }
-  } catch { /* no tabs to restore */ }
+  } catch {
+    /* no tabs to restore */
+  }
 })
 </script>
 
@@ -233,7 +231,16 @@ onMounted(async () => {
     <!-- No tabs placeholder -->
     <div v-if="store.tabs.length === 0" class="no-tabs">
       <div class="no-tabs-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <polyline points="16 3 21 3 21 8" />
           <line x1="4" y1="20" x2="21" y2="3" />
           <polyline points="21 16 21 21 16 21" />
@@ -271,7 +278,18 @@ onMounted(async () => {
             <span class="tab-title">{{ tab.title }}</span>
             <span class="tab-subtitle" v-if="tab.database">{{ tab.database }}</span>
             <span class="tab-close" @click.stop="handleTabClose(tab.id)">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </span>
           </template>
         </div>
@@ -292,23 +310,33 @@ onMounted(async () => {
           :max-width="600"
           @resize-width="handleRightSidebarResize"
         />
-        <div v-show="layoutStore.rightSidebarVisible" class="right-sidebar" :style="{ width: layoutStore.rightSidebarWidth + 'px' }">
+        <div
+          v-show="layoutStore.rightSidebarVisible"
+          class="right-sidebar"
+          :style="{ width: layoutStore.rightSidebarWidth + 'px' }"
+        >
           <div class="sidebar-tabs">
             <button
               class="sidebar-tab-btn"
               :class="{ active: sidebarTab === 'messages' }"
               @click="sidebarTab = 'messages'"
-            >消息</button>
+            >
+              消息
+            </button>
             <button
               class="sidebar-tab-btn"
               :class="{ active: sidebarTab === 'info' }"
               @click="sidebarTab = 'info'"
-            >表信息</button>
+            >
+              表信息
+            </button>
             <button
               class="sidebar-tab-btn"
               :class="{ active: sidebarTab === 'ddl' }"
               @click="sidebarTab = 'ddl'"
-            >建表语句</button>
+            >
+              建表语句
+            </button>
           </div>
           <div class="sidebar-content">
             <MessagePanel
@@ -347,7 +375,7 @@ onMounted(async () => {
             @stop="handleStop(store.activeTab!.id)"
           />
         </div>
-        <ResizableSplitter @resize="(p: number) => splitPercent = p" />
+        <ResizableSplitter @resize="(p: number) => (splitPercent = p)" />
         <div class="result-pane" :style="{ flexBasis: `${100 - splitPercent}%` }">
           <div class="result-pane-inner">
             <QueryResult
@@ -356,7 +384,10 @@ onMounted(async () => {
               :message="store.activeTab?.result?.message"
               :duration="store.activeTab?.result?.duration"
             />
-            <MessagePanel :messages="store.activeTab?.messages ?? []" :message-type="store.activeTab?.result?.messageType" />
+            <MessagePanel
+              :messages="store.activeTab?.messages ?? []"
+              :message-type="store.activeTab?.result?.messageType"
+            />
           </div>
         </div>
       </template>
@@ -414,7 +445,9 @@ onMounted(async () => {
   scrollbar-width: none;
   gap: 2px;
 }
-.tab-list::-webkit-scrollbar { display: none; }
+.tab-list::-webkit-scrollbar {
+  display: none;
+}
 
 .tab-item {
   display: flex;
@@ -428,19 +461,21 @@ onMounted(async () => {
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   max-width: 200px;
 }
 
 .tab-item:hover {
-  background: var(--color-tab-hover-bg, rgba(0,0,0,0.05));
+  background: var(--color-tab-hover-bg, rgba(0, 0, 0, 0.05));
   color: var(--color-tab-hover-text, #333);
 }
 
 .tab-item.active {
   background: var(--color-tab-active-bg, #fff);
   color: var(--color-tab-active-text, #1a1a2e);
-  box-shadow: 0 -1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .tab-icon {
@@ -473,13 +508,17 @@ onMounted(async () => {
   border-radius: 3px;
   flex-shrink: 0;
   opacity: 0;
-  transition: opacity 0.12s, background 0.12s;
+  transition:
+    opacity 0.12s,
+    background 0.12s;
   color: inherit;
 }
-.tab-item:hover .tab-close { opacity: 0.6; }
+.tab-item:hover .tab-close {
+  opacity: 0.6;
+}
 .tab-close:hover {
   opacity: 1 !important;
-  background: var(--color-hover, rgba(0,0,0,0.08));
+  background: var(--color-hover, rgba(0, 0, 0, 0.08));
 }
 
 .tab-rename-input {
@@ -532,7 +571,9 @@ onMounted(async () => {
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
 }
 
 .sidebar-tab-btn:hover {

@@ -10,6 +10,7 @@ import CreateDatabaseDialog from './CreateDatabaseDialog.vue'
 import CreateTableDialog from './CreateTableDialog.vue'
 import { ConnectionService } from '../../bindings/tuxedosql/internal/service'
 import type { ConnectionGroup, Connection, TreeNode } from '../types/connection'
+import { parseError } from '../composables/parseError'
 
 const store = useConnectionStore()
 const queryStore = useQueryStore()
@@ -30,20 +31,6 @@ function showToast(message: string, type: 'success' | 'error' = 'error') {
   else ElMessage.error(message)
 }
 
-function parseError(err: unknown): string {
-  if (err instanceof Error) {
-    try { const p = JSON.parse(err.message); if (p?.message) return String(p.message) } catch {}
-    return err.message
-  }
-  if (err && typeof err === 'object') {
-    const msg = (err as Record<string, unknown>).message
-    if (typeof msg === 'string') return msg
-  }
-  const raw = String(err)
-  try { const p = JSON.parse(raw); if (p?.message) return String(p.message) } catch {}
-  return raw
-}
-
 function buildGroupSubtree(
   parentId: string,
   groups: ConnectionGroup[],
@@ -51,17 +38,22 @@ function buildGroupSubtree(
 ): TreeNode[] {
   const children: TreeNode[] = []
 
-  for (const g of groups.filter(g => g.parentId === parentId)) {
+  for (const g of groups.filter((g) => g.parentId === parentId)) {
     children.push({
-      key: g.id, label: g.name, type: 'group',
+      key: g.id,
+      label: g.name,
+      type: 'group',
       leaf: false,
       children: buildGroupSubtree(g.id, groups, connections),
     })
   }
 
-  for (const c of connections.filter(c => c.groupId === parentId)) {
+  for (const c of connections.filter((c) => c.groupId === parentId)) {
     children.push({
-      key: c.id, label: c.name, type: 'connection', leaf: false,
+      key: c.id,
+      label: c.name,
+      type: 'connection',
+      leaf: false,
     })
   }
 
@@ -75,12 +67,15 @@ function buildTreeNodes(groups: ConnectionGroup[], connections: Connection[]): T
 async function loadData() {
   try {
     const [conns, grps] = await Promise.all([
-      ConnectionService.List(), ConnectionService.ListGroups(),
+      ConnectionService.List(),
+      ConnectionService.ListGroups(),
     ])
     store.setConnections(conns)
     store.setGroups(grps)
     treeData.value = buildTreeNodes(grps, conns)
-  } catch (err) { showToast(parseError(err)) }
+  } catch (err) {
+    showToast(parseError(err))
+  }
 }
 
 async function handleLoadNode(node: TreeNode, resolve: (children: TreeNode[]) => void) {
@@ -93,7 +88,10 @@ async function handleLoadNode(node: TreeNode, resolve: (children: TreeNode[]) =>
     try {
       const databases = await ConnectionService.GetDatabases(node.key)
       const children: TreeNode[] = databases.map((db: string) => ({
-        key: `${node.key}/${db}`, label: db, type: 'database', leaf: false,
+        key: `${node.key}/${db}`,
+        label: db,
+        type: 'database',
+        leaf: false,
       }))
       resolve(children)
     } catch (err) {
@@ -108,7 +106,10 @@ async function handleLoadNode(node: TreeNode, resolve: (children: TreeNode[]) =>
     try {
       const tables = await ConnectionService.GetTables(parts[0], parts.slice(1).join('/'))
       const children: TreeNode[] = tables.map((t: string) => ({
-        key: `${node.key}/${t}`, label: t, type: 'table', leaf: true,
+        key: `${node.key}/${t}`,
+        label: t,
+        type: 'table',
+        leaf: true,
       }))
       resolve(children)
     } catch (err) {
@@ -121,17 +122,21 @@ async function handleLoadNode(node: TreeNode, resolve: (children: TreeNode[]) =>
   resolve([])
 }
 
-function handleCreateConnection() { store.openCreateDialog() }
+function handleCreateConnection() {
+  store.openCreateDialog()
+}
 function handleEditConnection(connId: string) {
-  const conn = store.connections.find(c => c.id === connId)
+  const conn = store.connections.find((c) => c.id === connId)
   if (conn) store.openEditDialog(conn)
 }
 function handleDeleteConnection(connId: string) {
   if (confirm('确定要删除此连接吗？')) {
-    ConnectionService.Delete(connId).then(() => {
-      store.removeConnection(connId)
-      treeData.value = buildTreeNodes(store.groups, store.connections)
-    }).catch((err: unknown) => showToast(parseError(err)))
+    ConnectionService.Delete(connId)
+      .then(() => {
+        store.removeConnection(connId)
+        treeData.value = buildTreeNodes(store.groups, store.connections)
+      })
+      .catch((err: unknown) => showToast(parseError(err)))
   }
 }
 
@@ -140,16 +145,21 @@ function handleCreateGroup(parentId: string = '') {
   groupDialogVisible.value = true
 }
 function handleEditGroup(groupId: string) {
-  const g = store.groups.find(x => x.id === groupId)
-  if (g) { editingGroup.value = { id: g.id, name: g.name, parentId: g.parentId }; groupDialogVisible.value = true }
+  const g = store.groups.find((x) => x.id === groupId)
+  if (g) {
+    editingGroup.value = { id: g.id, name: g.name, parentId: g.parentId }
+    groupDialogVisible.value = true
+  }
 }
 function handleDeleteGroup(groupId: string) {
-  const g = store.groups.find(x => x.id === groupId)
+  const g = store.groups.find((x) => x.id === groupId)
   if (g && confirm(`确定要删除分组 "${g.name}" 吗？其中的连接将移至未分组。`)) {
-    ConnectionService.DeleteGroup(groupId).then(() => {
-      store.removeGroup(groupId)
-      treeData.value = buildTreeNodes(store.groups, store.connections)
-    }).catch((err: unknown) => showToast(parseError(err)))
+    ConnectionService.DeleteGroup(groupId)
+      .then(() => {
+        store.removeGroup(groupId)
+        treeData.value = buildTreeNodes(store.groups, store.connections)
+      })
+      .catch((err: unknown) => showToast(parseError(err)))
   }
 }
 
@@ -200,21 +210,27 @@ function handleQueryTable(node: TreeNode) {
 
 async function handleNodeDragEnd(dragging: TreeNode, target: TreeNode, dropType: string) {
   if (dragging.type === 'connection') {
-    const conn = store.connections.find(c => c.id === dragging.key)
+    const conn = store.connections.find((c) => c.id === dragging.key)
     if (!conn) return
     let newGroupId = ''
     if (dropType === 'inner') {
       newGroupId = target.key
     } else {
-      const targetConn = store.connections.find(c => c.id === target.key)
+      const targetConn = store.connections.find((c) => c.id === target.key)
       newGroupId = targetConn?.groupId ?? ''
     }
 
     try {
       await ConnectionService.Update({
-        id: conn.id, name: conn.name, groupId: newGroupId,
-        host: conn.host, port: conn.port, username: conn.username,
-        password: conn.password, database: conn.database, timezone: conn.timezone,
+        id: conn.id,
+        name: conn.name,
+        groupId: newGroupId,
+        host: conn.host,
+        port: conn.port,
+        username: conn.username,
+        password: conn.password,
+        database: conn.database,
+        timezone: conn.timezone,
       })
       await loadData()
       ElMessage.success(`已将 "${conn.name}" 移至${newGroupId ? '分组' : '未分组'}`)
@@ -227,17 +243,17 @@ async function handleNodeDragEnd(dragging: TreeNode, target: TreeNode, dropType:
 
   // Dragging a group
   if (dragging.type === 'group') {
-    const group = store.groups.find(g => g.id === dragging.key)
+    const group = store.groups.find((g) => g.id === dragging.key)
     if (!group) return
     let newParentId = ''
     if (dropType === 'inner') {
       newParentId = target.key
     } else {
-      const targetConn = store.connections.find(c => c.id === target.key)
+      const targetConn = store.connections.find((c) => c.id === target.key)
       if (targetConn) {
         newParentId = targetConn.groupId ?? ''
       } else {
-        const targetGroup = store.groups.find(g => g.id === target.key)
+        const targetGroup = store.groups.find((g) => g.id === target.key)
         newParentId = targetGroup?.parentId ?? ''
       }
     }
@@ -278,7 +294,9 @@ async function handleDropDatabase(connId: string, dbName: string) {
       ElMessage({ message: result.sql, type: 'warning', duration: 4000 })
     }
     await loadData()
-  } catch (err: unknown) { showToast(parseError(err)) }
+  } catch (err: unknown) {
+    showToast(parseError(err))
+  }
 }
 
 async function handleDropTable(connId: string, dbName: string, tableName: string) {
@@ -289,7 +307,9 @@ async function handleDropTable(connId: string, dbName: string, tableName: string
       ElMessage({ message: result.sql, type: 'warning', duration: 4000 })
     }
     await loadData()
-  } catch (err: unknown) { showToast(parseError(err)) }
+  } catch (err: unknown) {
+    showToast(parseError(err))
+  }
 }
 </script>
 
@@ -348,30 +368,46 @@ async function handleDropTable(connId: string, dbName: string, tableName: string
   height: 100%;
   background: var(--color-sidebar);
   border-right: 1px solid var(--color-border);
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
   user-select: none;
 }
 .sidebar-header {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 12px 16px;
   border-bottom: 1px solid var(--color-border);
 }
 .sidebar-header h2 {
-  font-size: 13px; font-weight: 600;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--color-text-secondary);
-  text-transform: uppercase; letter-spacing: 0.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin: 0;
 }
-.header-btns { display: flex; gap: 4px; }
+.header-btns {
+  display: flex;
+  gap: 4px;
+}
 .btn-add {
-  width: 24px; height: 24px;
-  border: none; border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
   background: var(--color-hover);
   color: var(--color-text);
-  font-size: 12px; line-height: 1;
+  font-size: 12px;
+  line-height: 1;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.15s;
 }
-.btn-add:hover { background: var(--color-accent); color: #fff; }
+.btn-add:hover {
+  background: var(--color-accent);
+  color: #fff;
+}
 </style>

@@ -10,6 +10,7 @@ import RecordForm from './RecordForm.vue'
 import DataExport from './DataExport.vue'
 import TableSearch from '../features/table/TableSearch.vue'
 import { formatCellValue } from '../lib/timeFormat'
+import { parseError } from '../composables/parseError'
 import type { QueryTab, PageResult, FilterGroup, DirtyChange, EditingCell } from '../types/query'
 import type { TableSchema } from '../../bindings/tuxedosql/internal/model/models'
 
@@ -55,20 +56,6 @@ function dirtyKey(rowIndex: number, columnName: string): string {
   return `${rowIndex}:${columnName}`
 }
 
-function parseError(err: unknown): string {
-  if (err instanceof Error) {
-    try { const p = JSON.parse(err.message); if (p?.message) return String(p.message) } catch {}
-    return err.message
-  }
-  if (err && typeof err === 'object') {
-    const msg = (err as Record<string, unknown>).message
-    if (typeof msg === 'string') return msg
-  }
-  const raw = String(err)
-  try { const p = JSON.parse(raw); if (p?.message) return String(p.message) } catch {}
-  return raw
-}
-
 function buildResultFromPage(p: PageResult): Parameters<typeof store.setResult>[1] {
   return {
     columns: p.columns,
@@ -88,12 +75,12 @@ async function loadSchema() {
 
   try {
     const schemasRaw: TableSchema[] = await QueryService.GetTableSchema(
-      tab.connectionId, tab.database, tab.tableName
+      tab.connectionId,
+      tab.database,
+      tab.tableName,
     )
     schemas.value = schemasRaw
-    pkColumns.value = schemasRaw
-      .filter(s => s.columnKey === 'PRI')
-      .map(s => s.name)
+    pkColumns.value = schemasRaw.filter((s) => s.columnKey === 'PRI').map((s) => s.name)
     schemaLoaded.value = true
   } catch (err: unknown) {
     store.addMessage(tab.id, `加载表结构失败: ${parseError(err)}`)
@@ -246,10 +233,13 @@ function handleCellDblClick(rowIndex: number, columnName: string) {
   const existingKey = dirtyKey(rowIndex, columnName)
   const existingDirty = dirtyMap[existingKey]
   const currentValue = existingDirty ? existingDirty.newValue : row[columnName]
-  const col = props.tab.result?.columns?.find(c => c.name === columnName)
+  const col = props.tab.result?.columns?.find((c) => c.name === columnName)
   const colType = col?.type ?? ''
 
-  editingValue.value = currentValue === null || currentValue === undefined ? '' : formatCellValue(colType, currentValue)
+  editingValue.value =
+    currentValue === null || currentValue === undefined
+      ? ''
+      : formatCellValue(colType, currentValue)
   editingCell.value = { rowIndex, columnName }
 }
 
@@ -258,7 +248,10 @@ function handleCellEditConfirm(rowIndex: number, columnName: string, newValue: s
 
   const rows = props.tab.result?.rows ?? []
   const row = rows[rowIndex]
-  if (!row) { editingCell.value = null; return }
+  if (!row) {
+    editingCell.value = null
+    return
+  }
 
   const oldValue = row[columnName]
   const oldStr = oldValue === null || oldValue === undefined ? '' : String(oldValue)
@@ -299,10 +292,13 @@ function handleFormFieldDblClick(fieldName: string) {
   const existingKey = dirtyKey(formRowIndex.value, fieldName)
   const existingDirty = dirtyMap[existingKey]
   const currentValue = existingDirty ? existingDirty.newValue : row[fieldName]
-  const col = props.tab.result?.columns?.find(c => c.name === fieldName)
+  const col = props.tab.result?.columns?.find((c) => c.name === fieldName)
   const colType = col?.type ?? ''
 
-  editingValue.value = currentValue === null || currentValue === undefined ? '' : formatCellValue(colType, currentValue)
+  editingValue.value =
+    currentValue === null || currentValue === undefined
+      ? ''
+      : formatCellValue(colType, currentValue)
   editingCell.value = { rowIndex: formRowIndex.value, columnName: fieldName }
 }
 
@@ -339,7 +335,9 @@ async function handleApply() {
         delete dirtyMap[key]
         successCount++
         // 审计 SQL — 同时显示 toast 和写入消息面板
-        const auditSQL = result.sql || `UPDATE ${tab.tableName} SET ${change.columnName} = '${change.newValue}' WHERE ...`
+        const auditSQL =
+          result.sql ||
+          `UPDATE ${tab.tableName} SET ${change.columnName} = '${change.newValue}' WHERE ...`
         ElMessage({ message: auditSQL, type: 'success', duration: 3000 })
         store.addMessage(tab.id, `✅ ${auditSQL}`)
       } else {
@@ -378,19 +376,23 @@ onMounted(() => loadData())
             class="toggle-btn"
             :class="{ active: viewMode === 'table' }"
             @click="handleViewModeSwitch('table')"
-          >表格</button>
+          >
+            表格
+          </button>
           <button
             class="toggle-btn"
             :class="{ active: viewMode === 'form' }"
             @click="handleViewModeSwitch('form')"
-          >表单</button>
+          >
+            表单
+          </button>
         </div>
         <button class="tb-btn" title="导出数据" @click="exportVisible = true">⬇ 导出</button>
         <button class="tb-btn" title="刷新" :disabled="loading" @click="loadData()">↻ 刷新</button>
       </div>
     </div>
     <TableSearch
-      :columns="(tab.result?.columns ?? []).map(c => c.name)"
+      :columns="(tab.result?.columns ?? []).map((c) => c.name)"
       :loading="loading"
       @search="handleTableSearch"
       @reset="handleTableSearchReset"
@@ -447,7 +449,10 @@ onMounted(() => loadData())
         :editing-field="editingCell?.columnName ?? null"
         :editing-value="editingValue"
         @field-dblclick="handleFormFieldDblClick"
-        @field-edit-confirm="(fieldName: string, newValue: string) => handleCellEditConfirm(formRowIndex, fieldName, newValue)"
+        @field-edit-confirm="
+          (fieldName: string, newValue: string) =>
+            handleCellEditConfirm(formRowIndex, fieldName, newValue)
+        "
         @field-edit-cancel="handleCellEditCancel"
         @field-edit-update:value="editingValue = $event"
         @prev-row="handleFormPrevRow"
@@ -460,7 +465,9 @@ onMounted(() => loadData())
       <div v-if="dirtyCount > 0" class="dirty-bar">
         <span class="dirty-info">{{ dirtyCount }} 项修改待提交</span>
         <div class="dirty-actions">
-          <button class="bar-btn bar-btn--discard" :disabled="applying" @click="handleDiscard">放弃</button>
+          <button class="bar-btn bar-btn--discard" :disabled="applying" @click="handleDiscard">
+            放弃
+          </button>
           <button class="bar-btn bar-btn--apply" :disabled="applying" @click="handleApply">
             {{ applying ? '提交中...' : '应用' }}
           </button>
@@ -542,7 +549,9 @@ onMounted(() => loadData())
   background: var(--color-surface, #fff);
   cursor: pointer;
   color: var(--color-text-secondary, #6e6e80);
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   border-right: 1px solid var(--color-border, #d9d9dc);
 }
 
@@ -571,7 +580,7 @@ onMounted(() => loadData())
 }
 
 .tb-btn:hover:not(:disabled) {
-  background: var(--color-hover, rgba(0,0,0,0.04));
+  background: var(--color-hover, rgba(0, 0, 0, 0.04));
 }
 
 .tb-btn:disabled {
@@ -611,7 +620,9 @@ onMounted(() => loadData())
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-text {
@@ -662,7 +673,7 @@ onMounted(() => loadData())
 .bar-btn {
   font-size: 12px;
   padding: 3px 14px;
-  border: 1px solid rgba(255,255,255,0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-sm, 4px);
   cursor: pointer;
   transition: background 0.15s;
@@ -671,7 +682,7 @@ onMounted(() => loadData())
 }
 
 .bar-btn:hover:not(:disabled) {
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .bar-btn:disabled {
@@ -686,7 +697,7 @@ onMounted(() => loadData())
 }
 
 .bar-btn--apply:hover:not(:disabled) {
-  background: rgba(255,255,255,0.9);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 /* ── Slide-up transition ── */

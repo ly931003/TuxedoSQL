@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { QueryService } from '../../bindings/tuxedosql/internal/service'
 import type { TableSchema } from '../../bindings/tuxedosql/internal/model/models'
+import { parseError } from '../composables/parseError'
 
 const props = defineProps<{
   connectionId: string
@@ -18,20 +19,16 @@ async function loadSchema() {
   loading.value = true
   error.value = ''
   try {
-    schemas.value = await QueryService.GetTableSchema(props.connectionId, props.database, props.tableName)
+    schemas.value = await QueryService.GetTableSchema(
+      props.connectionId,
+      props.database,
+      props.tableName,
+    )
   } catch (err: unknown) {
     error.value = parseError(err)
   } finally {
     loading.value = false
   }
-}
-
-function parseError(err: unknown): string {
-  if (err instanceof Error) {
-    try { const p = JSON.parse(err.message); if (p?.message) return String(p.message) } catch {}
-    return err.message
-  }
-  return String(err)
 }
 
 function keyLabel(key: string): string {
