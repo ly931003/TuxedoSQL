@@ -6,7 +6,7 @@ const props = defineProps<{
   messageType?: string
 }>()
 
-const collapsed = ref(false)  // 默认展开，让用户看到 SQL
+const collapsed = ref(false) // 默认展开，让用户看到 SQL
 
 const hasMessages = computed(() => props.messages.length > 0)
 
@@ -27,12 +27,7 @@ function getMessageClass(msg: string): string {
     </div>
     <div v-if="!collapsed" class="msg-list">
       <div v-if="!hasMessages" class="msg-empty">暂无消息。编辑操作产生的 SQL 将显示在此处。</div>
-      <div
-        v-for="(msg, idx) in messages"
-        :key="idx"
-        class="msg-item"
-        :class="getMessageClass(msg)"
-      >
+      <div v-for="(msg, idx) in messages" :key="idx" class="msg-item" :class="getMessageClass(msg)">
         {{ msg }}
       </div>
     </div>
@@ -106,8 +101,17 @@ function getMessageClass(msg: string): string {
   line-height: 1.5;
 }
 
-.msg-error { color: #e74c3c; }
-.msg-success { color: #27ae60; }
-.msg-info { color: var(--color-text-secondary); }
-.msg-audit { color: var(--color-accent); font-weight: 500; }
+.msg-error {
+  color: #e74c3c;
+}
+.msg-success {
+  color: #27ae60;
+}
+.msg-info {
+  color: var(--color-text-secondary);
+}
+.msg-audit {
+  color: var(--color-accent);
+  font-weight: 500;
+}
 </style>

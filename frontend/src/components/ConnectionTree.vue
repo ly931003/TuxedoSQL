@@ -63,11 +63,16 @@ const treeRef = ref()
 
 function getIcon(type: string): string {
   switch (type) {
-    case 'group': return '\u{1F4C1}'
-    case 'connection': return '\u{1F517}'
-    case 'database': return '\u{1F5C4}'
-    case 'table': return '\u{1F4CB}'
-    default: return '\u{1F4C4}'
+    case 'group':
+      return '\u{1F4C1}'
+    case 'connection':
+      return '\u{1F517}'
+    case 'database':
+      return '\u{1F5C4}'
+    case 'table':
+      return '\u{1F4CB}'
+    default:
+      return '\u{1F4C4}'
   }
 }
 
@@ -96,7 +101,12 @@ function handleNodeDblClick(data: TreeNode) {
 function handleContextMenu(event: MouseEvent, data: TreeNode) {
   event.preventDefault()
   event.stopPropagation()
-  if (data.type === 'connection' || data.type === 'group' || data.type === 'table' || data.type === 'database') {
+  if (
+    data.type === 'connection' ||
+    data.type === 'group' ||
+    data.type === 'table' ||
+    data.type === 'database'
+  ) {
     ctxNode.value = data
     ctxPos.value = { x: event.clientX, y: event.clientY }
     ctxVisible.value = true
@@ -180,13 +190,15 @@ defineExpose({ treeRef })
       :allow-drag="allowDrag"
       :allow-drop="allowDrop"
       lazy
-      :load="(node: any, resolve: any) => {
-        if (node.level === 0) {
-          resolve(props.nodes)
-        } else {
-          props.loadFn(node.data ?? node, resolve)
+      :load="
+        (node: any, resolve: any) => {
+          if (node.level === 0) {
+            resolve(props.nodes)
+          } else {
+            props.loadFn(node.data ?? node, resolve)
+          }
         }
-      }"
+      "
       @node-click="handleNodeClick"
       @node-drag-end="handleDragEnd"
       @node-contextmenu="handleContextMenu"
@@ -201,7 +213,11 @@ defineExpose({ treeRef })
 
     <Teleport to="body">
       <div v-if="ctxVisible" class="ctx-fixed" @click="closeContextMenu" />
-      <div v-if="ctxVisible" class="ctx-menu" :style="{ left: ctxPos.x + 'px', top: ctxPos.y + 'px' }">
+      <div
+        v-if="ctxVisible"
+        class="ctx-menu"
+        :style="{ left: ctxPos.x + 'px', top: ctxPos.y + 'px' }"
+      >
         <template v-if="ctxNode?.type === 'table'">
           <div class="ctx-item ctx-item--query" @click="handleQueryTable">🔍 查询表</div>
           <div class="ctx-item ctx-item--danger" @click="handleDropTable">🗑 删除表</div>
@@ -213,7 +229,9 @@ defineExpose({ treeRef })
         <template v-else>
           <div class="ctx-item" @click="handleEdit">{{ getMenuLabel() }}</div>
           <div class="ctx-item ctx-item--danger" @click="handleDelete">{{ getDeleteLabel() }}</div>
-          <div v-if="ctxNode?.type === 'connection'" class="ctx-item" @click="handleCreateDatabase">🗄 新建数据库</div>
+          <div v-if="ctxNode?.type === 'connection'" class="ctx-item" @click="handleCreateDatabase">
+            🗄 新建数据库
+          </div>
         </template>
       </div>
     </Teleport>
@@ -256,21 +274,40 @@ defineExpose({ treeRef })
 </style>
 
 <style>
-.ctx-fixed { position: fixed; inset: 0; z-index: 9998; }
+.ctx-fixed {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+}
 .ctx-menu {
-  position: fixed; z-index: 9999;
-  background: var(--color-dropdown-bg); border: 1px solid var(--color-border);
-  border-radius: 6px; padding: 4px 0; min-width: 140px;
+  position: fixed;
+  z-index: 9999;
+  background: var(--color-dropdown-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 140px;
   box-shadow: 0 4px 16px var(--color-dropdown-shadow);
 }
 .ctx-item {
-  padding: 6px 16px; font-size: 13px; cursor: pointer;
-  color: var(--color-text); transition: background 0.1s;
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--color-text);
+  transition: background 0.1s;
   white-space: nowrap;
 }
-.ctx-item:hover { background: var(--color-dropdown-hover); }
-.ctx-item--danger { color: #e74c3c; }
-.ctx-item--query { border-top: 1px solid var(--color-border); margin-top: 2px; padding-top: 8px; }
+.ctx-item:hover {
+  background: var(--color-dropdown-hover);
+}
+.ctx-item--danger {
+  color: #e74c3c;
+}
+.ctx-item--query {
+  border-top: 1px solid var(--color-border);
+  margin-top: 2px;
+  padding-top: 8px;
+}
 
 /* Suppress emoji drop-indicator drawn by Element Plus during tree drag */
 body .el-tree__drop-indicator {

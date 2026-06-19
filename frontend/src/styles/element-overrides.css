@@ -41,7 +41,7 @@
 }
 
 /* ── Dark theme overrides ── */
-[data-theme="dark"] {
+[data-theme='dark'] {
   --el-color-primary: var(--color-accent);
   --el-color-primary-light-3: #6b6ef5;
   --el-color-primary-light-5: #4f52d1;

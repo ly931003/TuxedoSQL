@@ -28,27 +28,39 @@ async function loadCharsets() {
   if (!props.connectionId) return
   loadingMeta.value = true
   try {
-    charsetList.value = await ConnectionService.GetCharsets(props.connectionId) || []
+    charsetList.value = (await ConnectionService.GetCharsets(props.connectionId)) || []
     if (charsetList.value.length > 0) {
       charset.value = charsetList.value[0].charset
       await loadCollations(charset.value)
     }
-  } catch { /* silently fallback to defaults */ }
-  finally { loadingMeta.value = false }
+  } catch {
+    /* silently fallback to defaults */
+  } finally {
+    loadingMeta.value = false
+  }
 }
 
 async function loadCollations(cs: string) {
   if (!props.connectionId || !cs) return
   try {
-    collationList.value = await ConnectionService.GetCollations(props.connectionId, cs) || []
+    collationList.value = (await ConnectionService.GetCollations(props.connectionId, cs)) || []
     if (!collationList.value.includes(collation.value)) {
       collation.value = collationList.value[0] || ''
     }
-  } catch { /* silently fallback */ }
+  } catch {
+    /* silently fallback */
+  }
 }
 
-watch(() => props.visible, (v) => { if (v) loadCharsets() })
-watch(charset, (cs) => { if (cs) loadCollations(cs) })
+watch(
+  () => props.visible,
+  (v) => {
+    if (v) loadCharsets()
+  },
+)
+watch(charset, (cs) => {
+  if (cs) loadCollations(cs)
+})
 
 async function handleCreate() {
   if (!dbName.value.trim()) {
@@ -87,15 +99,26 @@ async function handleCreate() {
   >
     <div class="db-body">
       <label class="db-label">数据库名</label>
-      <input v-model="dbName" class="db-input" placeholder="请输入数据库名..." @keydown.enter="handleCreate" />
+      <input
+        v-model="dbName"
+        class="db-input"
+        placeholder="请输入数据库名..."
+        @keydown.enter="handleCreate"
+      />
 
       <label class="db-label">字符集</label>
       <select v-model="charset" class="db-input" :disabled="loadingMeta">
-        <option v-for="c in charsetList" :key="c.charset" :value="c.charset">{{ c.charset }} - {{ c.description }}</option>
+        <option v-for="c in charsetList" :key="c.charset" :value="c.charset">
+          {{ c.charset }} - {{ c.description }}
+        </option>
       </select>
 
       <label class="db-label">排序规则</label>
-      <select v-model="collation" class="db-input" :disabled="loadingMeta || collationList.length === 0">
+      <select
+        v-model="collation"
+        class="db-input"
+        :disabled="loadingMeta || collationList.length === 0"
+      >
         <option v-for="c in collationList" :key="c" :value="c">{{ c }}</option>
       </select>
     </div>
@@ -109,17 +132,42 @@ async function handleCreate() {
 </template>
 
 <style scoped>
-.db-body { display: flex; flex-direction: column; gap: 8px; }
-.db-label { font-size: 12px; font-weight: 500; color: var(--color-text); }
+.db-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.db-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text);
+}
 .db-input {
-  font-size: 13px; padding: 6px 10px;
-  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
-  background: var(--color-input-bg); color: var(--color-text); outline: none;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-input-bg);
+  color: var(--color-text);
+  outline: none;
 }
-.db-input:focus { border-color: var(--color-accent); }
+.db-input:focus {
+  border-color: var(--color-accent);
+}
 .db-btn {
-  font-size: 13px; padding: 6px 16px; border: none; border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 13px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
-.db-btn--cancel { background: var(--color-hover); color: var(--color-text); margin-right: 8px; }
-.db-btn--confirm { background: var(--color-accent); color: #fff; }
+.db-btn--cancel {
+  background: var(--color-hover);
+  color: var(--color-text);
+  margin-right: 8px;
+}
+.db-btn--confirm {
+  background: var(--color-accent);
+  color: #fff;
+}
 </style>

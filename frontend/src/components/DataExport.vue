@@ -29,7 +29,7 @@ const format = ref<ExportFormat>('csv')
 const range = ref<ExportRange>('current')
 const fetching = ref(false)
 
-const columnNames = computed(() => props.columns.map(c => c.name))
+const columnNames = computed(() => props.columns.map((c) => c.name))
 
 // ── CSV generation ──
 
@@ -46,10 +46,8 @@ function escapeCSV(value: unknown): string {
 function generateCSV(rows: Record<string, unknown>[]): string {
   // BOM for Excel Chinese compatibility
   const BOM = '﻿'
-  const header = columnNames.value.map(c => escapeCSV(c)).join(',')
-  const lines = rows.map(row =>
-    columnNames.value.map(c => escapeCSV(row[c])).join(',')
-  )
+  const header = columnNames.value.map((c) => escapeCSV(c)).join(',')
+  const lines = rows.map((row) => columnNames.value.map((c) => escapeCSV(row[c])).join(','))
   return BOM + [header, ...lines].join('\n')
 }
 
@@ -63,9 +61,9 @@ function sqlValue(val: unknown): string {
 }
 
 function generateSQL(rows: Record<string, unknown>[]): string {
-  const cols = columnNames.value.map(c => '`' + c + '`').join(', ')
-  const lines = rows.map(row => {
-    const vals = columnNames.value.map(c => sqlValue(row[c])).join(', ')
+  const cols = columnNames.value.map((c) => '`' + c + '`').join(', ')
+  const lines = rows.map((row) => {
+    const vals = columnNames.value.map((c) => sqlValue(row[c])).join(', ')
     return `INSERT INTO \`${props.tableName}\` (${cols}) VALUES (${vals});`
   })
   return lines.join('\n') + '\n'
@@ -259,7 +257,7 @@ const rangeInfo = computed(() => {
 }
 
 .export-btn--cancel {
-  background: var(--color-hover, rgba(0,0,0,0.04));
+  background: var(--color-hover, rgba(0, 0, 0, 0.04));
   color: var(--color-text, #1a1a2e);
   margin-right: 8px;
 }

@@ -43,8 +43,25 @@ function copySQL() {
         @click="layoutStore.toggleLeftSidebar()"
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <rect x="1" y="1" width="4" height="12" rx="1" :fill="layoutStore.leftSidebarVisible ? 'var(--color-accent)' : 'var(--color-text-secondary)'" />
-          <rect x="7" y="1" width="6" height="12" rx="1" fill="var(--color-text-secondary)" opacity="0.4" />
+          <rect
+            x="1"
+            y="1"
+            width="4"
+            height="12"
+            rx="1"
+            :fill="
+              layoutStore.leftSidebarVisible ? 'var(--color-accent)' : 'var(--color-text-secondary)'
+            "
+          />
+          <rect
+            x="7"
+            y="1"
+            width="6"
+            height="12"
+            rx="1"
+            fill="var(--color-text-secondary)"
+            opacity="0.4"
+          />
         </svg>
       </button>
       <button
@@ -54,8 +71,27 @@ function copySQL() {
         @click="layoutStore.toggleRightSidebar()"
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <rect x="7" y="1" width="6" height="12" rx="1" :fill="layoutStore.rightSidebarVisible ? 'var(--color-accent)' : 'var(--color-text-secondary)'" />
-          <rect x="1" y="1" width="4" height="12" rx="1" fill="var(--color-text-secondary)" opacity="0.4" />
+          <rect
+            x="7"
+            y="1"
+            width="6"
+            height="12"
+            rx="1"
+            :fill="
+              layoutStore.rightSidebarVisible
+                ? 'var(--color-accent)'
+                : 'var(--color-text-secondary)'
+            "
+          />
+          <rect
+            x="1"
+            y="1"
+            width="4"
+            height="12"
+            rx="1"
+            fill="var(--color-text-secondary)"
+            opacity="0.4"
+          />
         </svg>
       </button>
     </div>

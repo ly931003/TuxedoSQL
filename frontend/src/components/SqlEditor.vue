@@ -33,10 +33,12 @@ function buildSQLLanguage(schema?: DBSchemaForCompletion | null): LanguageSuppor
   if (schema?.tables) {
     for (const [tableName, columns] of Object.entries(schema.tables)) {
       if (columns && columns.length > 0) {
-        schemaMap[tableName] = columns.map((col): Completion => ({
-          label: col,
-          type: 'column',
-        }))
+        schemaMap[tableName] = columns.map(
+          (col): Completion => ({
+            label: col,
+            type: 'column',
+          }),
+        )
       } else {
         schemaMap[tableName] = []
       }
@@ -59,15 +61,17 @@ function buildSQLLanguage(schema?: DBSchemaForCompletion | null): LanguageSuppor
 }
 
 function createEditor(): EditorView {
-  const executeKeymap = keymap.of([{
-    key: 'Ctrl-Enter',
-    run: () => {
-      if (!props.isExecuting) {
-        emit('execute')
-      }
-      return true
+  const executeKeymap = keymap.of([
+    {
+      key: 'Ctrl-Enter',
+      run: () => {
+        if (!props.isExecuting) {
+          emit('execute')
+        }
+        return true
+      },
     },
-  }])
+  ])
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
@@ -155,24 +159,30 @@ onUnmounted(() => {
 })
 
 // Sync external modelValue changes back into editor (e.g. tab switch)
-watch(() => props.modelValue, (newVal) => {
-  const view = editorView.value
-  if (!view) return
-  if (newVal !== view.state.doc.toString()) {
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: newVal },
-    })
-  }
-})
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    const view = editorView.value
+    if (!view) return
+    if (newVal !== view.state.doc.toString()) {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: newVal },
+      })
+    }
+  },
+)
 
 // Reconfigure language when schema changes (preserves undo history, selection, scroll)
-watch(() => props.schema, (newSchema) => {
-  const view = editorView.value
-  if (!view) return
-  view.dispatch({
-    effects: languageCompartment.reconfigure(buildSQLLanguage(newSchema)),
-  })
-})
+watch(
+  () => props.schema,
+  (newSchema) => {
+    const view = editorView.value
+    if (!view) return
+    view.dispatch({
+      effects: languageCompartment.reconfigure(buildSQLLanguage(newSchema)),
+    })
+  },
+)
 
 defineExpose({
   focus() {
@@ -182,11 +192,7 @@ defineExpose({
 </script>
 
 <template>
-  <div
-    ref="editorRef"
-    class="sql-editor"
-    :class="{ 'is-executing': props.isExecuting }"
-  />
+  <div ref="editorRef" class="sql-editor" :class="{ 'is-executing': props.isExecuting }" />
 </template>
 
 <style scoped>

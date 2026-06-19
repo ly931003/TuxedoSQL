@@ -38,12 +38,7 @@ defineExpose({ focus })
         >
           ▶ 执行
         </button>
-        <button
-          v-if="isExecuting"
-          class="btn-stop"
-          title="停止"
-          @click="emit('stop')"
-        >
+        <button v-if="isExecuting" class="btn-stop" title="停止" @click="emit('stop')">
           ■ 停止
         </button>
       </div>
@@ -86,7 +81,7 @@ defineExpose({ focus })
   font-size: 12px;
   font-weight: 500;
   color: var(--color-accent, #6366f1);
-  background: var(--color-selected, rgba(99, 102, 241, 0.10));
+  background: var(--color-selected, rgba(99, 102, 241, 0.1));
   padding: 2px 8px;
   border-radius: var(--radius-sm, 4px);
 }

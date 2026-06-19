@@ -22,8 +22,14 @@ interface FormData {
 }
 
 const form = reactive<FormData>({
-  name: '', groupId: '', host: '127.0.0.1', port: 3306,
-  username: 'root', password: '', database: '', timezone: 'Local',
+  name: '',
+  groupId: '',
+  host: '127.0.0.1',
+  port: 3306,
+  username: 'root',
+  password: '',
+  database: '',
+  timezone: 'Local',
 })
 
 const testResult = reactive<TestResult>({ success: false, message: '' })
@@ -32,18 +38,32 @@ const isSaving = ref(false)
 
 const visible = computed({
   get: () => store.dialogVisible,
-  set: (v) => { if (!v) store.closeDialog() },
+  set: (v) => {
+    if (!v) store.closeDialog()
+  },
 })
 
-watch(() => store.editingConnection, (conn) => {
-  if (conn) {
-    (Object.keys(form) as (keyof FormData)[]).forEach(k => { (form as Record<string, unknown>)[k] = (conn as Record<string, unknown>)[k] })
-  } else {
-    form.name = ''; form.groupId = ''; form.host = '127.0.0.1'; form.port = 3306
-    form.username = 'root'; form.password = ''; form.database = ''; form.timezone = 'Local'
-  }
-  testResult.success = false; testResult.message = ''
-})
+watch(
+  () => store.editingConnection,
+  (conn) => {
+    if (conn) {
+      ;(Object.keys(form) as (keyof FormData)[]).forEach((k) => {
+        ;(form as Record<string, unknown>)[k] = (conn as Record<string, unknown>)[k]
+      })
+    } else {
+      form.name = ''
+      form.groupId = ''
+      form.host = '127.0.0.1'
+      form.port = 3306
+      form.username = 'root'
+      form.password = ''
+      form.database = ''
+      form.timezone = 'Local'
+    }
+    testResult.success = false
+    testResult.message = ''
+  },
+)
 
 async function handleSave() {
   if (!form.name.trim()) return
@@ -51,13 +71,13 @@ async function handleSave() {
   // 编辑模式下：检查是否有活跃的查询标签页使用该连接
   if (store.editingConnection) {
     const editingId = store.editingConnection.id
-    const activeTabs = queryStore.tabs.filter(t => t.connectionId === editingId)
+    const activeTabs = queryStore.tabs.filter((t) => t.connectionId === editingId)
     if (activeTabs.length > 0) {
-      const tabNames = activeTabs.map(t => t.title).join('、')
+      const tabNames = activeTabs.map((t) => t.title).join('、')
       const confirmed = await ElMessageBox.confirm(
         `该连接有 ${activeTabs.length} 个活跃的查询标签页（${tabNames}），保存后所有连接将被重新建立，这些标签页的查询状态可能受影响。是否继续？`,
         '连接配置变更提醒',
-        { confirmButtonText: '继续保存', cancelButtonText: '取消', type: 'warning' }
+        { confirmButtonText: '继续保存', cancelButtonText: '取消', type: 'warning' },
       ).catch(() => false)
       if (!confirmed) return
     }
@@ -68,39 +88,59 @@ async function handleSave() {
     if (store.editingConnection) {
       const conn = await ConnectionService.Update({
         id: store.editingConnection.id,
-        name: form.name, groupId: form.groupId, host: form.host,
-        port: form.port, username: form.username,
-        password: form.password, database: form.database,
+        name: form.name,
+        groupId: form.groupId,
+        host: form.host,
+        port: form.port,
+        username: form.username,
+        password: form.password,
+        database: form.database,
         timezone: form.timezone,
       })
       if (conn) store.updateConnection(conn)
     } else {
       const conn = await ConnectionService.Create({
-        name: form.name, groupId: form.groupId, host: form.host,
-        port: form.port, username: form.username,
-        password: form.password, database: form.database,
+        name: form.name,
+        groupId: form.groupId,
+        host: form.host,
+        port: form.port,
+        username: form.username,
+        password: form.password,
+        database: form.database,
         timezone: form.timezone,
       })
       if (conn) store.addConnection(conn)
     }
     store.closeDialog()
     emit('saved')
-  } catch (err) { console.error('保存连接失败:', err) }
-  finally { isSaving.value = false }
+  } catch (err) {
+    console.error('保存连接失败:', err)
+  } finally {
+    isSaving.value = false
+  }
 }
 
 async function handleTest() {
-  isTesting.value = true; testResult.success = false; testResult.message = ''
+  isTesting.value = true
+  testResult.success = false
+  testResult.message = ''
   try {
     let connId = store.editingConnection?.id
     if (!connId) {
       const temp = await ConnectionService.Create({
-        name: '__temp_test__', groupId: '', host: form.host,
-        port: form.port, username: form.username,
-        password: form.password, database: form.database,
+        name: '__temp_test__',
+        groupId: '',
+        host: form.host,
+        port: form.port,
+        username: form.username,
+        password: form.password,
+        database: form.database,
         timezone: form.timezone,
       })
-      if (!temp) { testResult.message = '创建临时连接失败'; return }
+      if (!temp) {
+        testResult.message = '创建临时连接失败'
+        return
+      }
       connId = temp.id
       const result = await ConnectionService.TestConnection(connId)
       Object.assign(testResult, result)
@@ -109,11 +149,17 @@ async function handleTest() {
       const result = await ConnectionService.TestConnection(connId)
       Object.assign(testResult, result)
     }
-  } catch (err) { testResult.success = false; testResult.message = `测试失败: ${err}` }
-  finally { isTesting.value = false }
+  } catch (err) {
+    testResult.success = false
+    testResult.message = `测试失败: ${err}`
+  } finally {
+    isTesting.value = false
+  }
 }
 
-function handleClose() { store.closeDialog() }
+function handleClose() {
+  store.closeDialog()
+}
 </script>
 
 <template>
@@ -157,7 +203,13 @@ function handleClose() { store.closeDialog() }
         <el-input v-model="form.password" type="password" show-password placeholder="数据库密码" />
       </el-form-item>
       <el-form-item label="时区">
-        <el-select v-model="form.timezone" filterable allow-create placeholder="选择或输入时区" class="full-width">
+        <el-select
+          v-model="form.timezone"
+          filterable
+          allow-create
+          placeholder="选择或输入时区"
+          class="full-width"
+        >
           <el-option-group label="常用">
             <el-option label="本机时区" value="Local" />
             <el-option label="UTC" value="UTC" />
@@ -188,7 +240,11 @@ function handleClose() { store.closeDialog() }
           </el-option-group>
         </el-select>
       </el-form-item>
-      <div v-if="testResult.message" class="test-result" :class="{ 'test-result--ok': testResult.success }">
+      <div
+        v-if="testResult.message"
+        class="test-result"
+        :class="{ 'test-result--ok': testResult.success }"
+      >
         {{ testResult.message }}
       </div>
     </el-form>
@@ -205,13 +261,19 @@ function handleClose() { store.closeDialog() }
 </template>
 
 <style scoped>
-.full-width { width: 100%; }
+.full-width {
+  width: 100%;
+}
 
 .test-result {
-  padding: 8px 12px; border-radius: 6px; font-size: 12px;
-  background: rgba(231,76,60,0.10); color: #d63031;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: rgba(231, 76, 60, 0.1);
+  color: #d63031;
 }
 .test-result--ok {
-  background: rgba(46,204,113,0.12); color: #27ae60;
+  background: rgba(46, 204, 113, 0.12);
+  color: #27ae60;
 }
 </style>

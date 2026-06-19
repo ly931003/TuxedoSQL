@@ -19,9 +19,11 @@ export const useConnectionStore = defineStore('connection', {
   }),
 
   getters: {
-    connectionsByGroup: (state) => (groupId: string): Connection[] => {
-      return state.connections.filter((c) => c.groupId === groupId)
-    },
+    connectionsByGroup:
+      (state) =>
+      (groupId: string): Connection[] => {
+        return state.connections.filter((c) => c.groupId === groupId)
+      },
     ungroupedConnections: (state): Connection[] => {
       return state.connections.filter((c) => !c.groupId)
     },
@@ -66,9 +68,7 @@ export const useConnectionStore = defineStore('connection', {
     },
     removeGroup(id: string) {
       this.groups = this.groups.filter((g) => g.id !== id)
-      this.connections = this.connections.map((c) =>
-        c.groupId === id ? { ...c, groupId: '' } : c
-      )
+      this.connections = this.connections.map((c) => (c.groupId === id ? { ...c, groupId: '' } : c))
     },
   },
 })

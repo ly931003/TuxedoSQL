@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const props = withDefaults(defineProps<{
-  direction?: 'horizontal' | 'vertical'
-  minWidth?: number
-  maxWidth?: number
-}>(), {
-  direction: 'vertical',
-  minWidth: 180,
-  maxWidth: 500,
-})
+const props = withDefaults(
+  defineProps<{
+    direction?: 'horizontal' | 'vertical'
+    minWidth?: number
+    maxWidth?: number
+  }>(),
+  {
+    direction: 'vertical',
+    minWidth: 180,
+    maxWidth: 500,
+  },
+)
 
 const emit = defineEmits<{
   resize: [percent: number]
@@ -59,7 +62,10 @@ function onMouseUp() {
   <div
     ref="splitterRef"
     class="resizable-splitter"
-    :class="{ 'splitter-horizontal': direction === 'horizontal', 'splitter-vertical': direction !== 'horizontal' }"
+    :class="{
+      'splitter-horizontal': direction === 'horizontal',
+      'splitter-vertical': direction !== 'horizontal',
+    }"
     @mousedown="onMouseDown"
   >
     <div class="splitter-handle" />

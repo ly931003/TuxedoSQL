@@ -21,8 +21,15 @@ interface OpenTableViewParams {
   title?: string
 }
 
-interface OpenTabParams extends Omit<QueryTab, 'id' | 'title' | 'result' | 'messages' | 'isExecuting' | 'viewType'> {
+interface OpenTabParams extends Omit<
+  QueryTab,
+  'id' | 'title' | 'result' | 'messages' | 'isExecuting' | 'viewType'
+> {
   title?: string
+}
+
+interface AddTabParams extends Omit<OpenTabParams, 'sql'> {
+  sql?: string
 }
 
 interface QueryState {
@@ -53,7 +60,15 @@ export const useQueryStore = defineStore('query', {
   },
 
   actions: {
-    openTab(tab: Omit<QueryTab, 'id' | 'title' | 'result' | 'messages' | 'isExecuting' | 'viewType'> & { title?: string }): QueryTab {
+    addTab(tab: AddTabParams): QueryTab {
+      return this.openTab({ ...tab, sql: tab.sql ?? '' })
+    },
+
+    openTab(
+      tab: Omit<QueryTab, 'id' | 'title' | 'result' | 'messages' | 'isExecuting' | 'viewType'> & {
+        title?: string
+      },
+    ): QueryTab {
       const id = genID()
       const title = tab.title ?? genTitle()
       const newTab: QueryTab = {
@@ -78,12 +93,13 @@ export const useQueryStore = defineStore('query', {
       tableName: string
       title?: string
     }): QueryTab {
-      const existingTab = this.tabs.find((item) => (
-        item.viewType === 'table'
-        && item.connectionId === tab.connectionId
-        && item.database === tab.database
-        && item.tableName === tab.tableName
-      ))
+      const existingTab = this.tabs.find(
+        (item) =>
+          item.viewType === 'table' &&
+          item.connectionId === tab.connectionId &&
+          item.database === tab.database &&
+          item.tableName === tab.tableName,
+      )
 
       if (existingTab) {
         this.activeTabId = existingTab.id
@@ -123,10 +139,13 @@ export const useQueryStore = defineStore('query', {
       this.tabs = [...this.tabs.slice(0, idx), ...this.tabs.slice(idx + 1)]
 
       if (this.activeTabId === id) {
-        this.activeTabId = this.tabs.length > 0
-          ? this.tabs[Math.min(idx, this.tabs.length - 1)].id
-          : null
+        this.activeTabId =
+          this.tabs.length > 0 ? this.tabs[Math.min(idx, this.tabs.length - 1)].id : null
       }
+    },
+
+    removeTab(id: string): void {
+      this.closeTab(id)
     },
 
     setActiveTab(id: string): void {
@@ -143,15 +162,15 @@ export const useQueryStore = defineStore('query', {
       ]
     },
 
+    updateTabSQL(id: string, sql: string): void {
+      this.updateSQL(id, sql)
+    },
+
     setResult(id: string, result: QueryResult): void {
       const idx = this.tabs.findIndex((t) => t.id === id)
       if (idx === -1) return
       const tab = this.tabs[idx]
-      this.tabs = [
-        ...this.tabs.slice(0, idx),
-        { ...tab, result },
-        ...this.tabs.slice(idx + 1),
-      ]
+      this.tabs = [...this.tabs.slice(0, idx), { ...tab, result }, ...this.tabs.slice(idx + 1)]
     },
 
     setExecuting(id: string, isExecuting: boolean): void {
@@ -171,6 +190,16 @@ export const useQueryStore = defineStore('query', {
       this.tabs = [
         ...this.tabs.slice(0, idx),
         { ...tab, messages: [...tab.messages, message] },
+        ...this.tabs.slice(idx + 1),
+      ]
+    },
+
+    clearMessages(id: string): void {
+      const idx = this.tabs.findIndex((t) => t.id === id)
+      if (idx === -1) return
+      this.tabs = [
+        ...this.tabs.slice(0, idx),
+        { ...this.tabs[idx], messages: [] },
         ...this.tabs.slice(idx + 1),
       ]
     },

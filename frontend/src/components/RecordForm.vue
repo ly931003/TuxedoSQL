@@ -46,7 +46,7 @@ function getDisplayValue(colName: string): string {
 
   const raw = props.row?.[colName]
   if (raw === null || raw === undefined) return ''
-  const col = props.columns.find(c => c.name === colName)
+  const col = props.columns.find((c) => c.name === colName)
   return formatCellValue(col?.type ?? '', raw)
 }
 
@@ -57,7 +57,7 @@ function isNull(colName: string): boolean {
 }
 
 function getSchema(colName: string): TableSchema | undefined {
-  return props.schemas.find(s => s.name === colName)
+  return props.schemas.find((s) => s.name === colName)
 }
 
 function getTypeLabel(colName: string): string {
