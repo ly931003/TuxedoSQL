@@ -119,13 +119,14 @@ func TestSQLiteSchemaSystemDatabases(t *testing.T) {
 
 // TestSQLiteDriverInMemoryIntegration verifies the driver end-to-end with an in-memory DB.
 func TestSQLiteDriverInMemoryIntegration(t *testing.T) {
-	m := NewConnectionManager(nil, &SQLiteDriver{}, &SQLiteSchema{})
+	m := NewConnectionManager(nil, testDrivers, testSchemas)
 	defer m.CloseAll()
 
-	conn := &model.Connection{
-		ID:   "test-sqlite",
-		Host: ":memory:",
-	}
+        conn := &model.Connection{
+                ID:     "test-sqlite",
+                Driver: "sqlite",
+                Host:   ":memory:",
+        }
 
 	db, err := m.GetDB(conn, "main")
 	if err != nil {

@@ -102,7 +102,7 @@ func TestBuildSSHAuthMethods(t *testing.T) {
 }
 
 func TestCreateSSHTunnelValidation(t *testing.T) {
-	m := NewConnectionManager(nil, &MySQLDriver{}, &MySQLSchema{})
+	m := NewConnectionManager(nil, testDrivers, testSchemas)
 
 	tests := []struct {
 		name      string
@@ -146,7 +146,7 @@ func TestCreateSSHTunnelValidation(t *testing.T) {
 }
 
 func TestGetDBWithoutSSH(t *testing.T) {
-	m := NewConnectionManager(nil, &MySQLDriver{}, &MySQLSchema{})
+	m := NewConnectionManager(nil, testDrivers, testSchemas)
 
 	conn := &model.Connection{
 		ID:       "test-conn",
@@ -171,7 +171,7 @@ func TestGetDBWithoutSSH(t *testing.T) {
 }
 
 func TestConnectionManagerCloseWithSSHTunnel(t *testing.T) {
-	m := NewConnectionManager(nil, &MySQLDriver{}, &MySQLSchema{})
+	m := NewConnectionManager(nil, testDrivers, testSchemas)
 
 	// 模拟 SSH 隧道存在于 map 中
 	m.mu.Lock()
@@ -191,7 +191,7 @@ func TestConnectionManagerCloseWithSSHTunnel(t *testing.T) {
 }
 
 func TestConnectionManagerCloseAllSSHTunnels(t *testing.T) {
-	m := NewConnectionManager(nil, &MySQLDriver{}, &MySQLSchema{})
+	m := NewConnectionManager(nil, testDrivers, testSchemas)
 
 	m.mu.Lock()
 	m.sshTunnels["conn-a"] = &sshTunnel{}

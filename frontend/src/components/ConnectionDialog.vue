@@ -18,6 +18,7 @@ interface FormData {
   username: string
   password: string
   database: string
+  driver: string
   timezone: string
   sshEnabled: boolean
   sshHost: string
@@ -28,6 +29,13 @@ interface FormData {
   sshPrivateKeyPass: string
 }
 
+// 驱动对应的默认端口
+const driverDefaultPorts: Record<string, number> = {
+  mysql: 3306,
+  postgres: 5432,
+  sqlite: 0,
+}
+
 const form = reactive<FormData>({
   name: '',
   groupId: '',
@@ -36,6 +44,7 @@ const form = reactive<FormData>({
   username: 'root',
   password: '',
   database: '',
+  driver: 'mysql',
   timezone: 'Local',
   sshEnabled: false,
   sshHost: '',
@@ -57,6 +66,23 @@ const visible = computed({
   },
 })
 
+// 驱动切换时自动更新默认端口（仅新建模式）
+watch(
+  () => form.driver,
+  (newDriver) => {
+    // 编辑已有连接时不覆盖用户自定义的端口
+    if (store.editingConnection) return
+    const defaultPort = driverDefaultPorts[newDriver]
+    if (defaultPort !== undefined) {
+      form.port = defaultPort
+    }
+    // SQLite 的主机固定为文件路径，不需要 host/port
+    if (newDriver === 'sqlite') {
+      form.host = ''
+    }
+  },
+)
+
 watch(
   () => store.editingConnection,
   (conn) => {
@@ -68,7 +94,7 @@ watch(
           const sshKey = k.slice(3).replace(/^[A-Z]/, (c) => c.toLowerCase())
           formAny[k] = (conn.ssh as Record<string, unknown>)?.[sshKey] ?? formAny[k]
         } else {
-          formAny[k] = connAny[k]
+          formAny[k] = connAny[k] ?? formAny[k]
         }
       })
     } else {
@@ -79,6 +105,7 @@ watch(
       form.username = 'root'
       form.password = ''
       form.database = ''
+      form.driver = 'mysql'
       form.timezone = 'Local'
       form.sshEnabled = false
       form.sshHost = ''
@@ -120,6 +147,7 @@ async function handleSave() {
       password: form.sshPassword,
       privateKeyPath: form.sshPrivateKeyPath,
       privateKeyPass: form.sshPrivateKeyPass,
+      hostKeyAlgo: '',
     }
     try {
     if (store.editingConnection) {
@@ -132,6 +160,7 @@ async function handleSave() {
         username: form.username,
         password: form.password,
         database: form.database,
+        driver: form.driver,
         timezone: form.timezone,
         ssh,
       })
@@ -145,6 +174,7 @@ async function handleSave() {
         username: form.username,
         password: form.password,
         database: form.database,
+        driver: form.driver,
         timezone: form.timezone,
         ssh,
       })
@@ -172,6 +202,7 @@ async function handleTest() {
       password: form.sshPassword,
       privateKeyPath: form.sshPrivateKeyPath,
       privateKeyPass: form.sshPrivateKeyPass,
+      hostKeyAlgo: '',
     }
     let connId = store.editingConnection?.id
     if (!connId) {
@@ -183,6 +214,7 @@ async function handleTest() {
         username: form.username,
         password: form.password,
         database: form.database,
+        driver: form.driver,
         timezone: form.timezone,
         ssh,
       })
@@ -230,27 +262,51 @@ function handleClose() {
           <el-option v-for="g in store.groups" :key="g.id" :label="g.name" :value="g.id" />
         </el-select>
       </el-form-item>
-      <el-form-item label="主机">
-        <el-input v-model="form.host" placeholder="127.0.0.1" />
+
+      <el-form-item label="数据库类型">
+        <el-select v-model="form.driver" class="full-width">
+          <el-option label="MySQL / MariaDB" value="mysql" />
+          <el-option label="PostgreSQL" value="postgres" />
+          <el-option label="SQLite" value="sqlite" />
+        </el-select>
       </el-form-item>
-      <el-row :gutter="12">
-        <el-col :span="8">
-          <el-form-item label="端口">
-            <el-input-number v-model="form.port" :min="1" :max="65535" class="full-width" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="16">
-          <el-form-item label="默认数据库">
-            <el-input v-model="form.database" placeholder="(可选)" />
-          </el-form-item>
-        </el-col>
-      </el-row>
-      <el-form-item label="用户名">
-        <el-input v-model="form.username" placeholder="root" />
-      </el-form-item>
-      <el-form-item label="密码">
-        <el-input v-model="form.password" type="password" show-password placeholder="数据库密码" />
-      </el-form-item>
+
+      <template v-if="form.driver !== 'sqlite'">
+        <el-form-item label="主机">
+          <el-input v-model="form.host" placeholder="127.0.0.1" />
+        </el-form-item>
+        <el-row :gutter="12">
+          <el-col :span="8">
+            <el-form-item label="端口">
+              <el-input-number v-model="form.port" :min="1" :max="65535" class="full-width" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="16">
+            <el-form-item label="默认数据库">
+              <el-input v-model="form.database" placeholder="(可选)" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="用户名">
+          <el-input v-model="form.username" placeholder="root" />
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="form.password" type="password" show-password placeholder="数据库密码" />
+        </el-form-item>
+      </template>
+
+      <template v-else>
+        <el-form-item label="数据库文件路径">
+          <el-input v-model="form.host" placeholder="例如：/path/to/db.sqlite 或 :memory:（内存数据库）" />
+        </el-form-item>
+        <el-form-item label="用户名">
+          <el-input v-model="form.username" placeholder="(可选)" />
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="form.password" type="password" show-password placeholder="(可选)" />
+        </el-form-item>
+      </template>
+
       <el-form-item label="时区">
         <el-select
           v-model="form.timezone"
@@ -290,38 +346,40 @@ function handleClose() {
         </el-select>
       </el-form-item>
 
-      <!-- SSH 隧道配置 -->
-      <el-divider />
-      <el-form-item>
-        <el-checkbox v-model="form.sshEnabled" @change="showSSH = form.sshEnabled">
-          通过 SSH 隧道连接
-        </el-checkbox>
-      </el-form-item>
-      <template v-if="form.sshEnabled || showSSH">
-        <el-form-item label="SSH 主机">
-          <el-input v-model="form.sshHost" placeholder="例如：192.168.1.1" />
+      <!-- SSH 隧道配置（仅 MySQL/PostgreSQL 支持） -->
+      <template v-if="form.driver !== 'sqlite'">
+        <el-divider />
+        <el-form-item>
+          <el-checkbox v-model="form.sshEnabled" @change="showSSH = form.sshEnabled">
+            通过 SSH 隧道连接
+          </el-checkbox>
         </el-form-item>
-        <el-row :gutter="12">
-          <el-col :span="8">
-            <el-form-item label="SSH 端口">
-              <el-input-number v-model="form.sshPort" :min="1" :max="65535" class="full-width" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="16">
-            <el-form-item label="SSH 用户">
-              <el-input v-model="form.sshUser" placeholder="root" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="SSH 密码">
-          <el-input v-model="form.sshPassword" type="password" show-password placeholder="SSH 登录密码（可选）" />
-        </el-form-item>
-        <el-form-item label="私钥路径">
-          <el-input v-model="form.sshPrivateKeyPath" placeholder="~/.ssh/id_rsa（可选）" />
-        </el-form-item>
-        <el-form-item label="私钥口令">
-          <el-input v-model="form.sshPrivateKeyPass" type="password" show-password placeholder="加密私钥的口令（可选）" />
-        </el-form-item>
+        <template v-if="form.sshEnabled || showSSH">
+          <el-form-item label="SSH 主机">
+            <el-input v-model="form.sshHost" placeholder="例如：192.168.1.1" />
+          </el-form-item>
+          <el-row :gutter="12">
+            <el-col :span="8">
+              <el-form-item label="SSH 端口">
+                <el-input-number v-model="form.sshPort" :min="1" :max="65535" class="full-width" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="16">
+              <el-form-item label="SSH 用户">
+                <el-input v-model="form.sshUser" placeholder="root" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="SSH 密码">
+            <el-input v-model="form.sshPassword" type="password" show-password placeholder="SSH 登录密码（可选）" />
+          </el-form-item>
+          <el-form-item label="私钥路径">
+            <el-input v-model="form.sshPrivateKeyPath" placeholder="~/.ssh/id_rsa（可选）" />
+          </el-form-item>
+          <el-form-item label="私钥口令">
+            <el-input v-model="form.sshPrivateKeyPass" type="password" show-password placeholder="加密私钥的口令（可选）" />
+          </el-form-item>
+        </template>
       </template>
       <div
         v-if="testResult.message"

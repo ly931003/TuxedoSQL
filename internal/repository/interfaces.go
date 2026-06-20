@@ -20,7 +20,7 @@ type PoolManager interface {
 	GetDBByID(connectionID, database string) (*model.Connection, *sql.DB, error)
 	Close(connectionID string)
 	CloseAll()
-	Schema() SchemaIntrospector
+	Schema(conn *model.Connection) SchemaIntrospector
 }
 
 type TabStore interface {

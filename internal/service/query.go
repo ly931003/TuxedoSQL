@@ -279,12 +279,12 @@ func (s *QueryService) GetCreateTable(connectionID, database, table string) (str
 		return "", fmt.Errorf("表名不能为空")
 	}
 
-	_, db, err := s.connManager.GetDBByID(connectionID, database)
+	conn, db, err := s.connManager.GetDBByID(connectionID, database)
 	if err != nil {
 		return "", err
 	}
 
-	schema := s.connManager.Schema()
+	schema := s.connManager.Schema(conn)
 	safeTable := schema.QuoteIdentifier(table)
 	query := "SHOW CREATE TABLE " + safeTable
 
@@ -338,12 +338,12 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 		params.PageSize = 1000
 	}
 
-	_, db, err := s.connManager.GetDBByID(params.ConnectionID, params.Database)
+	conn, db, err := s.connManager.GetDBByID(params.ConnectionID, params.Database)
 	if err != nil {
 		return nil, err
 	}
 
-	schema := s.connManager.Schema()
+	schema := s.connManager.Schema(conn)
 
 	// getColumnWhitelist 内部调用 GetTableSchema，其 DSN 已指定 database，无需额外 USE
 	whitelist, err := s.getColumnWhitelist(params.ConnectionID, params.Database, params.Table)
@@ -657,7 +657,7 @@ func (s *QueryService) UpdateRow(params model.UpdateRowParams) (*model.UpdateRow
 		return nil, fmt.Errorf("主键条件不能为空")
 	}
 
-	_, db, err := s.connManager.GetDBByID(params.ConnectionID, params.Database)
+	conn, db, err := s.connManager.GetDBByID(params.ConnectionID, params.Database)
 	if err != nil {
 		return nil, err
 	}
@@ -677,7 +677,7 @@ func (s *QueryService) UpdateRow(params model.UpdateRowParams) (*model.UpdateRow
 	}
 
 	// 构建参数化 UPDATE: UPDATE "table" SET "col" = ? WHERE "pk1" = ? AND "pk2" = ?
-	schema := s.connManager.Schema()
+	schema := s.connManager.Schema(conn)
 	safeTable := schema.QuoteIdentifier(params.Table)
 	safeCol := schema.QuoteIdentifier(params.Column)
 

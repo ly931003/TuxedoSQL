@@ -23,7 +23,21 @@ func main() {
 	connRepo := repository.NewConnectionRepository(store)
 	tabRepo := repository.NewTabRepository(store)
 	historyRepo := repository.NewHistoryRepository(store)
-	connManager := repository.NewConnectionManager(connRepo, &repository.MySQLDriver{}, &repository.MySQLSchema{})
+
+	// 注册所有支持的数据库驱动及其对应的模式内省器
+	// key 与 Connection.Driver 字段值匹配
+	connManager := repository.NewConnectionManager(connRepo,
+		map[string]repository.DatabaseDriver{
+			"mysql":    &repository.MySQLDriver{},
+			"postgres": &repository.PostgresDriver{},
+			"sqlite":   &repository.SQLiteDriver{},
+		},
+		map[string]repository.SchemaIntrospector{
+			"mysql":    &repository.MySQLSchema{},
+			"postgres": &repository.PostgresSchema{},
+			"sqlite":   &repository.SQLiteSchema{},
+		},
+	)
 	defer connManager.CloseAll()
 
 	app := application.New(application.Options{

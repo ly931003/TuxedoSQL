@@ -252,6 +252,14 @@ export class Connection {
              */
             this["database"] = "";
         }
+        if (!("driver" in $$source)) {
+            /**
+             * 数据库驱动类型（mysql/postgres/sqlite），空值等价于 "mysql"
+             * @member
+             * @type {string}
+             */
+            this["driver"] = "";
+        }
         if (!("timezone" in $$source)) {
             /**
              * IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
@@ -292,10 +300,10 @@ export class Connection {
      * @returns {Connection}
      */
     static createFrom($$source = {}) {
-        const $$createField11_0 = $$createType0;
+        const $$createField12_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ssh" in $$parsedSource) {
-            $$parsedSource["ssh"] = $$createField11_0($$parsedSource["ssh"]);
+            $$parsedSource["ssh"] = $$createField12_0($$parsedSource["ssh"]);
         }
         return new Connection(/** @type {Partial<Connection>} */($$parsedSource));
     }
@@ -404,6 +412,14 @@ export class CreateConnectionParams {
              */
             this["database"] = "";
         }
+        if (!("driver" in $$source)) {
+            /**
+             * 数据库驱动类型（mysql/postgres/sqlite），空值等价于 "mysql"
+             * @member
+             * @type {string}
+             */
+            this["driver"] = "";
+        }
         if (!("timezone" in $$source)) {
             /**
              * IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
@@ -430,10 +446,10 @@ export class CreateConnectionParams {
      * @returns {CreateConnectionParams}
      */
     static createFrom($$source = {}) {
-        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ssh" in $$parsedSource) {
-            $$parsedSource["ssh"] = $$createField8_0($$parsedSource["ssh"]);
+            $$parsedSource["ssh"] = $$createField9_0($$parsedSource["ssh"]);
         }
         return new CreateConnectionParams(/** @type {Partial<CreateConnectionParams>} */($$parsedSource));
     }
@@ -1234,6 +1250,14 @@ export class SSHConfig {
              */
             this["privateKeyPass"] = "";
         }
+        if (!("hostKeyAlgo" in $$source)) {
+            /**
+             * TODO: 未来用于 known_hosts 主机密钥校验（当前未实现）
+             * @member
+             * @type {string}
+             */
+            this["hostKeyAlgo"] = "";
+        }
 
         Object.assign(this, $$source);
     }
@@ -1587,6 +1611,14 @@ export class UpdateConnectionParams {
              */
             this["database"] = "";
         }
+        if (!("driver" in $$source)) {
+            /**
+             * 数据库驱动类型（mysql/postgres/sqlite），空值等价于 "mysql"
+             * @member
+             * @type {string}
+             */
+            this["driver"] = "";
+        }
         if (!("timezone" in $$source)) {
             /**
              * IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
@@ -1613,10 +1645,10 @@ export class UpdateConnectionParams {
      * @returns {UpdateConnectionParams}
      */
     static createFrom($$source = {}) {
-        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ssh" in $$parsedSource) {
-            $$parsedSource["ssh"] = $$createField9_0($$parsedSource["ssh"]);
+            $$parsedSource["ssh"] = $$createField10_0($$parsedSource["ssh"]);
         }
         return new UpdateConnectionParams(/** @type {Partial<UpdateConnectionParams>} */($$parsedSource));
     }

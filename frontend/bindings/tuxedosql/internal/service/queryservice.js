@@ -68,7 +68,9 @@ export function GetDBSchemaForCompletion(connectionID, database) {
 }
 
 /**
- * GetForeignKeys 返回指定表的外键关系（包括出向和入向）。
+ * GetForeignKeys 返回指定表或整个数据库的外键关系。
+ * 当 table 为非空时，返回该表的出向和入向外键关系。
+ * 当 table 为空时，一次查询返回数据库中所有表的外键关系，避免 N+1 问题。
  * 外键信息来自 INFORMATION_SCHEMA.KEY_COLUMN_USAGE，用于前端 ER 图渲染。
  * @param {string} connectionID
  * @param {string} database

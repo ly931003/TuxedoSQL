@@ -13,7 +13,8 @@ type Connection struct {
 	Username  string    `json:"username"`
 	Password  string    `json:"password"`
 	Database  string    `json:"database"`
-	Timezone  string    `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
+	Driver    string    `json:"driver"`    // 数据库驱动类型（mysql/postgres/sqlite），空值等价于 "mysql"
+	Timezone  string    `json:"timezone"`  // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 	// SSH 隧道配置（可选） — 零值 (Enabled=false) 表示直连数据库
@@ -38,27 +39,29 @@ type TreeNode struct {
 
 // CreateConnectionParams 是创建连接时的请求参数。
 type CreateConnectionParams struct {
-	Name     string `json:"name"`
-	GroupID  string `json:"groupId"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Database string `json:"database"`
+	Name     string    `json:"name"`
+	GroupID  string    `json:"groupId"`
+	Host     string    `json:"host"`
+	Port     int       `json:"port"`
+	Username string    `json:"username"`
+	Password string    `json:"password"`
+	Database string    `json:"database"`
+	Driver   string    `json:"driver"`   // 数据库驱动类型（mysql/postgres/sqlite），空值等价于 "mysql"
 	Timezone string    `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
 	SSH      SSHConfig `json:"ssh"`      // SSH 隧道配置（可选）
 }
 
 // UpdateConnectionParams 是更新连接时的请求参数。
 type UpdateConnectionParams struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	GroupID  string `json:"groupId"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Database string `json:"database"`
+	ID       string    `json:"id"`
+	Name     string    `json:"name"`
+	GroupID  string    `json:"groupId"`
+	Host     string    `json:"host"`
+	Port     int       `json:"port"`
+	Username string    `json:"username"`
+	Password string    `json:"password"`
+	Database string    `json:"database"`
+	Driver   string    `json:"driver"`   // 数据库驱动类型（mysql/postgres/sqlite），空值等价于 "mysql"
 	Timezone string    `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
 	SSH      SSHConfig `json:"ssh"`      // SSH 隧道配置（可选）
 }
@@ -130,12 +133,12 @@ type CharsetInfo struct {
 // 当 Enabled=true 时，所有数据库连接通过 SSH 隧道转发。
 // 支持密码和私钥两种认证方式，私钥优先。
 type SSHConfig struct {
-	Enabled          bool   `json:"enabled"`          // 是否启用 SSH 隧道
-	Host             string `json:"host"`             // SSH 服务器地址
-	Port             int    `json:"port"`             // SSH 端口（默认 22）
-	User             string `json:"user"`             // SSH 登录用户名
-	Password         string `json:"password"`         // SSH 密码（与私钥二选一）
-	PrivateKeyPath   string `json:"privateKeyPath"`   // 私钥文件路径（如 ~/.ssh/id_rsa）
-	PrivateKeyPass   string `json:"privateKeyPass"`   // 私钥口令（加密私钥时需要）
-	HostKeyAlgo      string `json:"hostKeyAlgo"`      // TODO: 未来用于 known_hosts 主机密钥校验（当前未实现）
+	Enabled        bool   `json:"enabled"`        // 是否启用 SSH 隧道
+	Host           string `json:"host"`           // SSH 服务器地址
+	Port           int    `json:"port"`           // SSH 端口（默认 22）
+	User           string `json:"user"`           // SSH 登录用户名
+	Password       string `json:"password"`       // SSH 密码（与私钥二选一）
+	PrivateKeyPath string `json:"privateKeyPath"` // 私钥文件路径（如 ~/.ssh/id_rsa）
+	PrivateKeyPass string `json:"privateKeyPass"` // 私钥口令（加密私钥时需要）
+	HostKeyAlgo    string `json:"hostKeyAlgo"`    // TODO: 未来用于 known_hosts 主机密钥校验（当前未实现）
 }

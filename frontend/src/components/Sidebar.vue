@@ -230,6 +230,7 @@ async function handleNodeDragEnd(dragging: TreeNode, target: TreeNode, dropType:
         password: conn.password,
         database: conn.database,
         timezone: conn.timezone,
+        ssh: conn.ssh,
       })
       await loadData()
       ElMessage.success(`已将 "${conn.name}" 移至${newGroupId ? '分组' : '未分组'}`)

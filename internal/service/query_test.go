@@ -16,7 +16,10 @@ func newTestQueryService(t *testing.T) *QueryService {
 	connRepo := repository.NewConnectionRepository(store)
 	tabRepo := repository.NewTabRepository(store)
 	historyRepo := repository.NewHistoryRepository(store)
-	connManager := repository.NewConnectionManager(connRepo, &repository.MySQLDriver{}, &repository.MySQLSchema{})
+        connManager := repository.NewConnectionManager(connRepo,
+                map[string]repository.DatabaseDriver{"mysql": &repository.MySQLDriver{}},
+                map[string]repository.SchemaIntrospector{"mysql": &repository.MySQLSchema{}},
+        )
 	return NewQueryService(connManager, connRepo, tabRepo, historyRepo)
 }
 
@@ -200,7 +203,8 @@ func TestQueryService_IsQueryDetection(t *testing.T) {
 
 func TestBuildFilterClause_GroupValidation(t *testing.T) {
 	svc := newTestQueryService(t)
-	schema := svc.connManager.Schema()
+        conn := &model.Connection{}
+        schema := svc.connManager.Schema(conn)
 	whitelist := map[string]bool{
 		"name":   true,
 		"status": true,

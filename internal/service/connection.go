@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-
 	"tuxedosql/internal/model"
 	"tuxedosql/internal/repository"
 )
@@ -60,6 +59,7 @@ func (s *ConnectionService) Create(params model.CreateConnectionParams) (*model.
 		Username:  params.Username,
 		Password:  params.Password,
 		Database:  params.Database,
+		Driver:    params.Driver,
 		Timezone:  tz,
 		SSH:       params.SSH,
 		CreatedAt: now,
@@ -104,14 +104,8 @@ func (s *ConnectionService) Update(params model.UpdateConnectionParams) (*model.
 	conn.Username = params.Username
 	conn.Password = params.Password
 	conn.Database = params.Database
+	conn.Driver = params.Driver
 	conn.SSH = params.SSH
-	conn.Name = params.Name
-	conn.GroupID = params.GroupID
-	conn.Host = params.Host
-	conn.Port = params.Port
-	conn.Username = params.Username
-	conn.Password = params.Password
-	conn.Database = params.Database
 	if params.Timezone == "" {
 		conn.Timezone = "Local"
 	} else {
@@ -213,7 +207,7 @@ func (s *ConnectionService) GetDatabases(connectionID string) ([]string, error) 
 		return nil, err
 	}
 
-	schema := s.connManager.Schema()
+	schema := s.connManager.Schema(conn)
 	rows, err := db.Query(schema.ListDatabasesQuery())
 	if err != nil {
 		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
@@ -248,7 +242,7 @@ func (s *ConnectionService) GetTables(connectionID, databaseName string) ([]stri
 		return nil, err
 	}
 
-	schema := s.connManager.Schema()
+	schema := s.connManager.Schema(conn)
 	rows, err := db.Query(schema.ListTablesQuery())
 	if err != nil {
 		return nil, fmt.Errorf("查询表列表失败: %w", err)
@@ -458,7 +452,7 @@ func (s *ConnectionService) CreateDatabase(params model.CreateDatabaseParams) (*
 		return nil, err
 	}
 
-	schema := s.connManager.Schema()
+	schema := s.connManager.Schema(conn)
 	safeName := schema.QuoteIdentifier(params.DatabaseName)
 	createSQL := "CREATE DATABASE " + safeName
 	if params.Charset != "" {
@@ -490,16 +484,16 @@ func (s *ConnectionService) DropDatabase(connectionID, databaseName string) (*mo
 		return nil, fmt.Errorf("数据库名不能为空")
 	}
 
-	// 安全检查：禁止删除系统数据库（通过 SchemaIntrospector 获取系统库列表）
-	schema := s.connManager.Schema()
-	systemDBs := schema.SystemDatabases()
-	if isSystemDatabase(systemDBs, databaseName) {
-		return nil, fmt.Errorf("禁止删除系统数据库: %s", databaseName)
-	}
-
 	conn, err := s.findConnection(connectionID)
 	if err != nil {
 		return nil, err
+	}
+
+	// 安全检查：禁止删除系统数据库（通过 SchemaIntrospector 获取系统库列表）
+	schema := s.connManager.Schema(conn)
+	systemDBs := schema.SystemDatabases()
+	if isSystemDatabase(systemDBs, databaseName) {
+		return nil, fmt.Errorf("禁止删除系统数据库: %s", databaseName)
 	}
 
 	db, err := s.connManager.GetDB(conn, "")
@@ -551,7 +545,7 @@ func (s *ConnectionService) CreateTable(params model.CreateTableParams) (*model.
 		return nil, err
 	}
 
-	schema := s.connManager.Schema()
+	schema := s.connManager.Schema(conn)
 	safeTable := schema.QuoteIdentifier(params.TableName)
 
 	var colDefs []string
@@ -632,7 +626,7 @@ func (s *ConnectionService) DropTable(connectionID, databaseName, tableName stri
 		return nil, err
 	}
 
-	schema := s.connManager.Schema()
+	schema := s.connManager.Schema(conn)
 	safeTable := schema.QuoteIdentifier(tableName)
 	dropSQL := "DROP TABLE " + safeTable
 

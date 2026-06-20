@@ -41,7 +41,7 @@ The name comes from the author's two adorable tuxedo cats — black-and-white fe
 
 | Category | Highlights |
 |----------|-----------|
-| **Connections** | Save, organize, test-connect — MySQL support with more databases coming |
+| **Connections** | Save, organize, test-connect — MySQL, PostgreSQL, SQLite via SSH tunnels |
 | **Query Editor** | Multi-tab sessions, syntax highlighting, auto-completion hints |
 | **Query Builder** | Visual WHERE clause builder with nested logic groups — no SQL typing required |
 | **Data Browser** | Sortable columns, column-level filters, paginated results |
@@ -62,7 +62,7 @@ The name comes from the author's two adorable tuxedo cats — black-and-white fe
 | UI Kit | [Element Plus](https://element-plus.org/) | Mature Vue 3 component library |
 | State | [Pinia](https://pinia.vuejs.org/) | Lightweight, devtools-friendly |
 | Editor | CodeMirror 6 | Extensible, mobile-friendly, first-class SQL support |
-| DB Driver | [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql) | Battle-tested MySQL/MariaDB driver |
+| DB Driver | [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql), [lib/pq](https://github.com/lib/pq), [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) | Multi-driver with registry pattern |
 | Crypto | OS keyring + `golang.org/x/crypto` | AES-256 with machine-ID derived key as fallback |
 
 ## 🚀 Quick Start
@@ -112,14 +112,21 @@ TuxedoSQL/
 │
 ├── internal/
 │   ├── service/              # business services exposed to frontend via Wails bridge
-│   │   ├── connection.go     #   CRUD + connectivity test
-│   │   └── query.go          #   SQL execution + schema introspection
-│   ├── model/                # domain types (Connection, Query, Tab…)
-│   └── repository/           # persistence layer (JSON store, connection pool)
+│   │   ├── connection.go     #   CRUD + connectivity test + schema browsing
+│   │   ├── query.go          #   SQL execution + schema introspection
+│   │   ├── query_registry.go #   per-query context cancellation
+│   │   └── integration_test.go
+│   ├── model/                # domain types (Connection, Query, Tab, ForeignKey, ...)
+│   └── repository/           # persistence + multi-driver pools + SSH tunnels
+│       ├── connection_pool.go
+│       ├── driver_*.go       # DatabaseDriver/SchemaIntrospector per DB
+│       ├── ssh_tunnel.go      
+│       ├── history_repo.go
+│       └── interfaces.go
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── components/       # 19 Vue components (editor, sidebar, dialogs, panels)
+│   │   ├── components/       # 20 Vue components (editor, sidebar, dialogs, panels)
 │   │   ├── features/         # feature modules (TableSearch with query builder)
 │   │   ├── composables/      # reusable logic hooks
 │   │   ├── stores/           # Pinia state stores
@@ -151,9 +158,9 @@ TuxedoSQL is three clean layers:
 │  ConnectionService / QueryService    │
 │  → repository → model               │
 └──────────────┬───────────────────────┘
-               │ database/sql
+               │ database/sql (driver registry)
 ┌──────────────▼───────────────────────┐
-│  MySQL / MariaDB                     │
+│  MySQL  │  PostgreSQL  │  SQLite     │
 └──────────────────────────────────────┘
 ```
 
@@ -173,12 +180,12 @@ Adding a new frontend-callable API is three steps:
 - [x] Schema explorer + DDL viewer
 - [x] Data export (CSV/SQL INSERT/JSON)
 - [x] Server mode + Docker deployment
-- [ ] PostgreSQL support
-- [ ] SQLite support
-- [ ] SSH tunnel connections
-- [ ] Query history & favorites
+- [x] PostgreSQL support
+- [x] SQLite support
+- [x] SSH tunnel connections
+- [x] Query history & favorites
 - [x] Dark mode
-- [ ] ER diagram visualizer
+- [x] ER diagram visualizer
 
 ## 🤝 Contributing
 

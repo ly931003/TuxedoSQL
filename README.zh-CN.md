@@ -41,7 +41,7 @@
 
 | 分类 | 亮点 |
 |------|------|
-| **连接管理** | 保存、分组、测试连接 —— 已支持 MySQL，更多数据库接入中 |
+| **连接管理** | 保存、分组、测试连接 —— 支持 MySQL、PostgreSQL、SQLite，可选 SSH 隧道 |
 | **查询编辑器** | 多标签页会话、语法高亮、自动补全提示 |
 | **查询构建器** | 可视化 WHERE 条件构建，嵌套逻辑组 —— 不写 SQL 也能查 |
 | **数据浏览** | 列排序、列过滤、分页加载 |
@@ -62,7 +62,7 @@
 | UI 组件库 | [Element Plus](https://element-plus.org/) | 成熟的 Vue 3 组件库 |
 | 状态管理 | [Pinia](https://pinia.vuejs.org/) | 轻量、DevTools 友好 |
 | 编辑器 | CodeMirror 6 | 可扩展、移动端友好、原生 SQL 支持 |
-| 数据库驱动 | [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql) | 久经考验的 MySQL/MariaDB 驱动 |
+| 数据库驱动 | [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql)、[lib/pq](https://github.com/lib/pq)、[modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) | 多驱动注册表模式 |
 | 加密 | 系统密钥环 + `golang.org/x/crypto` | AES-256 + 机器 ID 派生密钥兜底 |
 
 ## 🚀 快速开始
@@ -112,14 +112,21 @@ TuxedoSQL/
 │
 ├── internal/
 │   ├── service/              # 业务服务层，通过 Wails 桥接暴露给前端
-│   │   ├── connection.go     #   连接 CRUD + 连通性测试
-│   │   └── query.go          #   SQL 执行 + Schema 内省
-│   ├── model/                # 领域类型（Connection, Query, Tab…）
-│   └── repository/           # 持久化层（JSON 存储、连接池）
+│   │   ├── connection.go     #   连接 CRUD + 连通性测试 + Schema 浏览
+│   │   ├── query.go          #   SQL 执行 + Schema 内省
+│   │   ├── query_registry.go #   按查询上下文取消
+│   │   └── integration_test.go
+│   ├── model/                # 领域类型（Connection、Query、Tab、ForeignKey…）
+│   └── repository/           # 持久化层（JSON 存储、多驱动连接池、SSH 隧道）
+│       ├── connection_pool.go
+│       ├── driver_*.go       # 各数据库的 DatabaseDriver + SchemaIntrospector
+│       ├── ssh_tunnel.go
+│       ├── history_repo.go
+│       └── interfaces.go
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── components/       # 19 个 Vue 组件（编辑器、侧边栏、对话框、面板）
+│   │   ├── components/       # 20 个 Vue 组件（编辑器、侧边栏、对话框、面板）
 │   │   ├── features/         # 功能模块（含查询构建器的 TableSearch）
 │   │   ├── composables/      # 可复用逻辑 hooks
 │   │   ├── stores/           # Pinia 状态管理
@@ -153,7 +160,7 @@ TuxedoSQL 清晰分为三层：
 └──────────────┬───────────────────────┘
                │ database/sql
 ┌──────────────▼───────────────────────┐
-│  MySQL / MariaDB                     │
+│  MySQL  │  PostgreSQL  │  SQLite     │
 └──────────────────────────────────────┘
 ```
 
@@ -173,12 +180,12 @@ TuxedoSQL 清晰分为三层：
 - [x] Schema 浏览器 + DDL 查看器
 - [x] 数据导出（CSV/SQL INSERT/JSON）
 - [x] 服务器模式 + Docker 部署
-- [ ] PostgreSQL 支持
-- [ ] SQLite 支持
-- [ ] SSH 隧道连接
-- [ ] 查询历史 & 收藏
+- [x] PostgreSQL 支持
+- [x] SQLite 支持
+- [x] SSH 隧道连接
+- [x] 查询历史 & 收藏
 - [x] 深色模式
-- [ ] ER 图可视化
+- [x] ER 图可视化
 
 ## 🤝 参与贡献
 

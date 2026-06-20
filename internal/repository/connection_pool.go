@@ -12,33 +12,61 @@ import (
 
 // ConnectionManager 管理数据库连接池，按 connectionID:database 缓存 *sql.DB 实例。
 // 不同数据库使用独立的连接池，避免 USE database 交叉影响。
-// 通过 DatabaseDriver 接口支持多种数据库（MySQL、PostgreSQL 等）。
+// 通过 DatabaseDriver 接口支持多种数据库（MySQL、PostgreSQL、SQLite）。
 // 支持 SSH 隧道连接 — SSH 配置不为零值时自动建立端口转发。
 type ConnectionManager struct {
 	mu         sync.RWMutex
-	pools      map[string]*sql.DB // key: connectionID:database
-	sshTunnels map[string]*sshTunnel // key: connectionID — SSH 隧道缓存
+	pools      map[string]*sql.DB          // key: connectionID:database
+	sshTunnels map[string]*sshTunnel       // key: connectionID — SSH 隧道缓存
 	connRepo   ConnectionStore
-	driver     DatabaseDriver
-	schema     SchemaIntrospector
+	drivers    map[string]DatabaseDriver   // key: driver name ("mysql", "postgres", "sqlite")
+	schemas    map[string]SchemaIntrospector
 }
 
 // NewConnectionManager 创建一个新的 ConnectionManager。
-// driver 指定数据库驱动（如 MySQLDriver、PostgresDriver），决定 DSN 格式和连接行为。
-// schema 指定数据库模式内省器（如 MySQLSchema、PostgresSchema），提供 SQL 查询和标识符引用。
-func NewConnectionManager(connRepo ConnectionStore, driver DatabaseDriver, schema SchemaIntrospector) *ConnectionManager {
+// drivers 和 schemas 的 key 为驱动名（如 "mysql"、"postgres"、"sqlite"），
+// 与 Connection.Driver 字段匹配以查找对应的驱动实现。
+func NewConnectionManager(connRepo ConnectionStore, drivers map[string]DatabaseDriver, schemas map[string]SchemaIntrospector) *ConnectionManager {
 	return &ConnectionManager{
 		pools:      make(map[string]*sql.DB),
 		sshTunnels: make(map[string]*sshTunnel),
 		connRepo:   connRepo,
-		driver:     driver,
-		schema:     schema,
+		drivers:    drivers,
+		schemas:    schemas,
 	}
 }
 
-// Schema 返回当前连接管理器的 SchemaIntrospector，供 service 层构建跨数据库 SQL。
-func (m *ConnectionManager) Schema() SchemaIntrospector {
-	return m.schema
+// resolveDriver 根据 Connection.Driver 字段解析驱动名，空值默认 "mysql"。
+func (m *ConnectionManager) resolveDriverName(conn *model.Connection) string {
+	if conn.Driver == "" {
+		return "mysql"
+	}
+	return conn.Driver
+}
+
+// resolveDriverAndSchema 根据连接配置解析对应的 DatabaseDriver 和 SchemaIntrospector。
+// 如果驱动名不存在于注册表中则返回错误。
+func (m *ConnectionManager) resolveDriverAndSchema(conn *model.Connection) (DatabaseDriver, SchemaIntrospector, error) {
+	name := m.resolveDriverName(conn)
+	driver, ok := m.drivers[name]
+	if !ok {
+		return nil, nil, fmt.Errorf("不支持的数据库驱动: %s", name)
+	}
+	schema, ok := m.schemas[name]
+	if !ok {
+		return nil, nil, fmt.Errorf("不支持的数据库驱动: %s", name)
+	}
+	return driver, schema, nil
+}
+
+// Schema 返回指定连接对应的 SchemaIntrospector，供 service 层构建跨数据库 SQL。
+func (m *ConnectionManager) Schema(conn *model.Connection) SchemaIntrospector {
+	_, schema, err := m.resolveDriverAndSchema(conn)
+	if err != nil {
+		// 回退到 MySQL schema — 生产环境中 conn 带有合法 Driver 字段不应触发
+		return m.schemas["mysql"]
+	}
+	return schema
 }
 
 // GetDB 返回指定连接和数据库对应的池化 *sql.DB。
@@ -47,6 +75,11 @@ func (m *ConnectionManager) Schema() SchemaIntrospector {
 func (m *ConnectionManager) GetDB(conn *model.Connection, database string) (*sql.DB, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("连接不能为空")
+	}
+
+	driver, _, err := m.resolveDriverAndSchema(conn)
+	if err != nil {
+		return nil, err
 	}
 
 	poolKey := conn.ID + ":" + database
@@ -74,7 +107,7 @@ func (m *ConnectionManager) GetDB(conn *model.Connection, database string) (*sql
 		dbName = conn.Database
 	}
 	if dbName == "" {
-		dbName = m.driver.DefaultDatabase()
+		dbName = driver.DefaultDatabase()
 	}
 
 	// 通过驱动构建 DSN（时区处理由各驱动内部负责）
@@ -89,12 +122,12 @@ func (m *ConnectionManager) GetDB(conn *model.Connection, database string) (*sql
 		tunnelConn := *conn
 		tunnelConn.Host = "127.0.0.1"
 		tunnelConn.Port = localPort
-		dsn = m.driver.BuildDSN(&tunnelConn, dbName)
+		dsn = driver.BuildDSN(&tunnelConn, dbName)
 	} else {
-		dsn = m.driver.BuildDSN(conn, dbName)
+		dsn = driver.BuildDSN(conn, dbName)
 	}
 
-	db, err := sql.Open(m.driver.DriverName(), dsn)
+	db, err := sql.Open(driver.DriverName(), dsn)
 	if err != nil {
 		return nil, fmt.Errorf("打开数据库连接失败: %w", err)
 	}

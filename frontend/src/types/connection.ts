@@ -6,6 +6,7 @@ export interface SSHConfig {
   password: string
   privateKeyPath: string
   privateKeyPass: string
+  hostKeyAlgo: string
 }
 
 export interface Connection {
@@ -17,6 +18,7 @@ export interface Connection {
   username: string
   password: string
   database: string
+  driver: string
   timezone: string
   ssh: SSHConfig
   createdAt: string
@@ -37,6 +39,7 @@ export interface CreateConnectionParams {
   username: string
   password: string
   database: string
+  driver: string
   timezone: string
   ssh: SSHConfig
 }
@@ -50,6 +53,7 @@ export interface UpdateConnectionParams {
   username: string
   password: string
   database: string
+  driver: string
   timezone: string
   ssh: SSHConfig
 }
