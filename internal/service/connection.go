@@ -399,8 +399,8 @@ func (s *ConnectionService) isDescendant(groups []model.ConnectionGroup, ancesto
 	for _, g := range groups {
 		children[g.ParentID] = append(children[g.ParentID], g.ID)
 	}
-	// BFS from targetID — if we reach ancestorID, then target is a descendant
-	queue := []string{targetID}
+	// BFS from ancestorID — if we reach targetID, then target is a descendant
+	queue := []string{ancestorID}
 	visited := make(map[string]bool)
 	for len(queue) > 0 {
 		current := queue[0]
@@ -409,10 +409,20 @@ func (s *ConnectionService) isDescendant(groups []model.ConnectionGroup, ancesto
 			continue
 		}
 		visited[current] = true
-		if current == ancestorID {
+		if current == targetID {
 			return true
 		}
 		queue = append(queue, children[current]...)
+	}
+	return false
+}
+
+// isSystemDatabase performs case-insensitive lookup in the system database set.
+func isSystemDatabase(systemDBs map[string]bool, name string) bool {
+	for db := range systemDBs {
+		if strings.EqualFold(db, name) {
+			return true
+		}
 	}
 	return false
 }
@@ -484,7 +494,7 @@ func (s *ConnectionService) DropDatabase(connectionID, databaseName string) (*mo
 	// 安全检查：禁止删除系统数据库（通过 SchemaIntrospector 获取系统库列表）
 	schema := s.connManager.Schema()
 	systemDBs := schema.SystemDatabases()
-	if systemDBs[strings.ToUpper(databaseName)] {
+	if isSystemDatabase(systemDBs, databaseName) {
 		return nil, fmt.Errorf("禁止删除系统数据库: %s", databaseName)
 	}
 

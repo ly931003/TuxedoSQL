@@ -76,6 +76,8 @@ func (m *ConnectionManager) createSSHTunnel(conn *model.Connection) (*sshTunnel,
 	sshConfig := &ssh.ClientConfig{
 		User:            cfg.User,
 		Auth:            buildSSHAuthMethods(cfg),
+		// TODO: InsecureIgnoreHostKey 跳过主机密钥验证，存在 MITM 风险。
+		// 未来应使用 cfg.HostKeyAlgo + known_hosts 进行主机密钥校验。
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Timeout:         10 * time.Second,
 	}
