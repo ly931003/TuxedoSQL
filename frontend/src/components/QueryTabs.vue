@@ -21,7 +21,7 @@ const messagePanelWidth = ref(260)
 const editingTabId = ref<string | null>(null)
 const editTitle = ref('')
 const executePromises = new Map<string, { cancel: () => void }>()
-const sidebarTab = ref<'messages' | 'info' | 'ddl'>('messages')
+const sidebarTab = ref<'messages' | 'info' | 'ddl' | 'erd'>('messages')
 
 // ── Schema cache for autocomplete ──
 const SCHEMA_CACHE_TTL_MS = 30_000
@@ -391,6 +391,13 @@ onMounted(async () => {
             >
               建表语句
             </button>
+            <button
+              class="sidebar-tab-btn"
+              :class="{ active: sidebarTab === 'erd' }"
+              @click="sidebarTab = 'erd'"
+            >
+              ER图
+            </button>
           </div>
           <div class="sidebar-content">
             <MessagePanel
@@ -406,6 +413,12 @@ onMounted(async () => {
             />
             <TableDDLPanel
               v-if="sidebarTab === 'ddl'"
+              :connection-id="store.activeTab.connectionId"
+              :database="store.activeTab.database"
+              :table-name="store.activeTab.tableName ?? ''"
+            />
+            <TableERDiagram
+              v-if="sidebarTab === 'erd'"
               :connection-id="store.activeTab.connectionId"
               :database="store.activeTab.database"
               :table-name="store.activeTab.tableName ?? ''"

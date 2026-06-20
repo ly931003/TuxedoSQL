@@ -10,6 +10,7 @@ import type {
   UpdateRowParams,
   UpdateRowResult,
   DBSchemaForCompletion,
+  ForeignKey,
 } from '../../bindings/tuxedosql/internal/model/models'
 import { SortOrder, FilterOperator, LogicOp } from '../../bindings/tuxedosql/internal/model/models'
 
@@ -25,6 +26,7 @@ export type {
   UpdateRowParams,
   UpdateRowResult,
   DBSchemaForCompletion,
+  ForeignKey,
 }
 export { SortOrder, FilterOperator, LogicOp }
 

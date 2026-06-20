@@ -156,3 +156,13 @@ type DBSchemaForCompletion struct {
 	Tables map[string][]string `json:"tables"` // 表名 → 列名列表
 	Views  []string            `json:"views"`  // 视图名列表
 }
+
+// ForeignKey 表示一个外键约束关系，来自 INFORMATION_SCHEMA.KEY_COLUMN_USAGE。
+// SourceTable/SourceColumn 是外键所在的源表/列，TargetTable/TargetColumn 是被引用的目标表/列。
+type ForeignKey struct {
+	SourceTable    string `json:"sourceTable"`    // 外键源表名
+	SourceColumn   string `json:"sourceColumn"`   // 外键源列名
+	TargetTable    string `json:"targetTable"`    // 被引用的目标表名
+	TargetColumn   string `json:"targetColumn"`   // 被引用的目标列名
+	ConstraintName string `json:"constraintName"` // 约束名
+}
