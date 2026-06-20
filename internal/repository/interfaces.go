@@ -19,6 +19,7 @@ type PoolManager interface {
 	GetDB(conn *model.Connection, database string) (*sql.DB, error)
 	GetDBByID(connectionID, database string) (*model.Connection, *sql.DB, error)
 	Close(connectionID string)
+	CloseAll()
 	Schema() SchemaIntrospector
 }
 
