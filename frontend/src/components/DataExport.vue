@@ -22,7 +22,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-type ExportFormat = 'csv' | 'sql'
+type ExportFormat = 'csv' | 'sql' | 'json'
 type ExportRange = 'current' | 'all'
 
 const format = ref<ExportFormat>('csv')
@@ -68,6 +68,12 @@ function generateSQL(rows: Record<string, unknown>[]): string {
   })
   return lines.join('\n') + '\n'
 }
+// ── JSON export ──
+
+function generateJSON(rows: Record<string, unknown>[]): string {
+  return JSON.stringify(rows, null, 2)
+}
+
 
 // ── Fetch all rows via paginated backend calls ──
 
@@ -134,10 +140,14 @@ async function handleExport() {
     content = generateCSV(rows)
     mime = 'text/csv;charset=utf-8'
     ext = 'csv'
-  } else {
+  } else if (format.value === 'sql') {
     content = generateSQL(rows)
     mime = 'text/plain;charset=utf-8'
     ext = 'sql'
+  } else {
+    content = generateJSON(rows)
+    mime = 'application/json;charset=utf-8'
+    ext = 'json'
   }
 
   const blob = new Blob([content], { type: mime })
@@ -180,6 +190,10 @@ const rangeInfo = computed(() => {
           <label class="radio-item">
             <input v-model="format" type="radio" value="sql" />
             <span>SQL INSERT</span>
+          </label>
+          <label class="radio-item">
+            <input v-model="format" type="radio" value="json" />
+            <span>JSON</span>
           </label>
         </div>
       </div>
