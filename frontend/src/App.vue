@@ -5,11 +5,23 @@ import QueryTabs from './components/QueryTabs.vue'
 import ConnectionDialog from './components/ConnectionDialog.vue'
 import BottomBar from './components/BottomBar.vue'
 import ResizableSplitter from './components/ResizableSplitter.vue'
+import QueryHistoryPanel from './components/QueryHistoryPanel.vue'
 import { useLayoutStore } from './stores/layout'
+import { useQueryStore } from './stores/query'
 
 const layoutStore = useLayoutStore()
 const sidebarRef = ref<InstanceType<typeof Sidebar> | null>(null)
 const isDark = ref(document.documentElement.getAttribute('data-theme') === 'dark')
+const queryStore = useQueryStore()
+const showHistory = ref(false)
+
+function handlePickSql(sql: string) {
+  queryStore.addTab({
+    connectionId: '',
+    database: '',
+    sql,
+  })
+}
 
 function refreshTree() {
   sidebarRef.value?.loadData()
@@ -43,11 +55,24 @@ function handleLeftSidebarResize(width: number) {
         <div class="top-bar">
           <span class="app-brand">TuxedoSQL</span>
           <button
+            class="history-btn"
+            title="查询历史"
+            @click="showHistory = true"
+          >
+            历史
+          </button>
+          <button
             class="theme-toggle"
             :title="isDark ? '切换到浅色主题' : '切换到暗色主题'"
             @click="toggleTheme"
           >
-            {{ isDark ? '☀' : '☾' }}
+            <svg v-if="isDark" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
           </button>
         </div>
         <QueryTabs />
@@ -55,6 +80,11 @@ function handleLeftSidebarResize(width: number) {
     </div>
     <BottomBar />
     <ConnectionDialog @saved="refreshTree" />
+    <QueryHistoryPanel
+      :visible="showHistory"
+      @close="showHistory = false"
+      @pick-sql="handlePickSql"
+    />
   </div>
 </template>
 
@@ -99,6 +129,14 @@ function handleLeftSidebarResize(width: number) {
   letter-spacing: 0.3px;
 }
 
+/* ── Top bar buttons ── */
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .theme-toggle {
   width: 24px;
   height: 24px;
@@ -116,5 +154,23 @@ function handleLeftSidebarResize(width: number) {
 }
 .theme-toggle:hover {
   background: var(--color-hover);
+}
+
+
+.history-btn {
+  font-size: 12px;
+  padding: 2px 10px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--color-text-secondary, #666);
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: var(--font-sans);
+}
+
+.history-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
 }
 </style>

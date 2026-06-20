@@ -87,7 +87,7 @@ watch(() => [props.connectionId, props.database, props.tableName], loadSchema)
 
 .info-error {
   font-size: 12px;
-  color: #e74c3c;
+  color: var(--color-danger);
   text-align: center;
   padding: 16px;
 }

@@ -87,13 +87,13 @@ type CreateDatabaseParams struct {
 
 // CreateTableParams 是创建新表的请求参数。
 type CreateTableParams struct {
-	ConnectionID string       `json:"connectionId"` // 连接ID
-	DatabaseName string       `json:"databaseName"` // 目标数据库名
-	TableName    string       `json:"tableName"`    // 新表名
-	Charset      string       `json:"charset"`      // 字符集
-	Collation    string       `json:"collation"`    // 排序规则
-	Comment      string       `json:"comment"`      // 表注释
-	Columns      []ColumnDef  `json:"columns"`      // 列定义
+	ConnectionID string      `json:"connectionId"` // 连接ID
+	DatabaseName string      `json:"databaseName"` // 目标数据库名
+	TableName    string      `json:"tableName"`    // 新表名
+	Charset      string      `json:"charset"`      // 字符集
+	Collation    string      `json:"collation"`    // 排序规则
+	Comment      string      `json:"comment"`      // 表注释
+	Columns      []ColumnDef `json:"columns"`      // 列定义
 }
 
 // ColumnDef 是建表时的一列定义。
@@ -116,7 +116,7 @@ type DDLResult struct {
 
 // CharsetInfo 表示 MySQL 支持的字符集及其默认排序规则。
 type CharsetInfo struct {
-	Charset         string `json:"charset"`         // 字符集名
+	Charset          string `json:"charset"`          // 字符集名
 	DefaultCollation string `json:"defaultCollation"` // 默认排序规则
-	Description     string `json:"description"`     // 描述
+	Description      string `json:"description"`      // 描述
 }

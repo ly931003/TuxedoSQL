@@ -18,6 +18,7 @@ export {
     LogicOp,
     PageResult,
     QueryResult,
+    QueryHistoryEntry,
     ResultType,
     SortOrder,
     TabState,

@@ -799,6 +799,11 @@ export class QueryResult {
      */
     "duration": number;
 
+    /**
+     * 查询 ID（用于取消查询）
+     */
+    "queryId": string;
+
     /** Creates a new QueryResult instance. */
     constructor($$source: Partial<QueryResult> = {}) {
         if (!("columns" in $$source)) {
@@ -818,6 +823,9 @@ export class QueryResult {
         }
         if (!("duration" in $$source)) {
             this["duration"] = 0;
+        }
+        if (!("queryId" in $$source)) {
+            this["queryId"] = "";
         }
 
         Object.assign(this, $$source);
@@ -1307,6 +1315,89 @@ export class UpdateRowResult {
     }
 }
 
+/**
+ * QueryHistoryEntry 表示一条查询历史记录。
+ */
+export class QueryHistoryEntry {
+    /**
+     * 历史记录唯一标识
+     */
+    "id": string;
+
+    /**
+     * 连接 ID
+     */
+    "connectionId": string;
+
+    /**
+     * 数据库名
+     */
+    "database": string;
+
+    /**
+     * SQL 语句
+     */
+    "sql": string;
+
+    /**
+     * 执行时间戳（Unix 毫秒）
+     */
+    "timestamp": number;
+
+    /**
+     * 执行耗时（毫秒）
+     */
+    "duration": number;
+
+    /**
+     * 影响行数
+     */
+    "rowCount": number;
+
+    /**
+     * 是否执行成功
+     */
+    "success": boolean;
+
+    /** Creates a new QueryHistoryEntry instance. */
+    constructor($$source: Partial<QueryHistoryEntry> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("connectionId" in $$source)) {
+            this["connectionId"] = "";
+        }
+        if (!("database" in $$source)) {
+            this["database"] = "";
+        }
+        if (!("sql" in $$source)) {
+            this["sql"] = "";
+        }
+        if (!("timestamp" in $$source)) {
+            this["timestamp"] = 0;
+        }
+        if (!("duration" in $$source)) {
+            this["duration"] = 0;
+        }
+        if (!("rowCount" in $$source)) {
+            this["rowCount"] = 0;
+        }
+        if (!("success" in $$source)) {
+            this["success"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new QueryHistoryEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): QueryHistoryEntry {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new QueryHistoryEntry($$parsedSource as Partial<QueryHistoryEntry>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = ColumnDef.createFrom;
 const $$createType1 = $Create.Array($$createType0);
@@ -1319,3 +1410,5 @@ const $$createType7 = ColumnInfo.createFrom;
 const $$createType8 = $Create.Array($$createType7);
 const $$createType9 = $Create.Map($Create.Any, $Create.Any);
 const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = QueryHistoryEntry.createFrom;
+const $$createType12 = $Create.Array($$createType11);

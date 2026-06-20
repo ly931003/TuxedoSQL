@@ -22,6 +22,7 @@ func main() {
 
 	connRepo := repository.NewConnectionRepository(store)
 	tabRepo := repository.NewTabRepository(store)
+	historyRepo := repository.NewHistoryRepository(store)
 	connManager := repository.NewConnectionManager(connRepo)
 	defer connManager.CloseAll()
 
@@ -30,7 +31,7 @@ func main() {
 		Description: "数据库可视化管理工具",
 		Services: []application.Service{
 			application.NewService(service.NewConnectionService(connManager, connRepo)),
-			application.NewService(service.NewQueryService(connManager, connRepo, tabRepo)),
+			application.NewService(service.NewQueryService(connManager, connRepo, tabRepo, historyRepo)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -41,13 +42,13 @@ func main() {
 	})
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:  "TuxedoSQL",
-		Width:  1200,
-		Height: 800,
-		MinWidth:  800,
-		MinHeight: 500,
+		Title:            "TuxedoSQL",
+		Width:            1200,
+		Height:           800,
+		MinWidth:         800,
+		MinHeight:        500,
 		BackgroundColour: application.NewRGB(255, 255, 255),
-		URL: "/",
+		URL:              "/",
 	})
 
 	err = app.Run()

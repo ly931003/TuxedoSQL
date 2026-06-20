@@ -64,6 +64,7 @@ function buildResultFromPage(p: PageResult): Parameters<typeof store.setResult>[
     message: p.message,
     messageType: p.messageType,
     duration: p.duration,
+    queryId: '',
   }
 }
 
@@ -561,7 +562,7 @@ onMounted(() => loadData())
 
 .toggle-btn.active {
   background: var(--color-accent, #6366f1);
-  color: #fff;
+  color: var(--color-text-on-accent);
 }
 
 .toggle-btn:hover:not(.active) {
@@ -656,7 +657,7 @@ onMounted(() => loadData())
   justify-content: space-between;
   padding: 6px 12px;
   background: var(--color-accent, #6366f1);
-  color: #fff;
+  color: var(--color-text-on-accent);
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -677,7 +678,7 @@ onMounted(() => loadData())
   border-radius: var(--radius-sm, 4px);
   cursor: pointer;
   transition: background 0.15s;
-  color: #fff;
+  color: var(--color-text-on-accent);
   background: transparent;
 }
 
@@ -691,9 +692,9 @@ onMounted(() => loadData())
 }
 
 .bar-btn--apply {
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-accent, #6366f1);
-  border-color: #fff;
+  border-color: var(--color-surface);
 }
 
 .bar-btn--apply:hover:not(:disabled) {

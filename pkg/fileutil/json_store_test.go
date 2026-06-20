@@ -27,7 +27,7 @@ func TestJSONStore_SaveAndLoad(t *testing.T) {
 
 	// Use a temp filename to avoid polluting real config
 	tmpFile := "test_jsonstore_temp.json"
-	defer os.Remove(filepath.Join(store.dir, tmpFile))
+	defer func() { _ = os.Remove(filepath.Join(store.dir, tmpFile)) }()
 
 	type testData struct {
 		Name  string `json:"name"`
@@ -69,7 +69,7 @@ func TestJSONStore_SaveOverwrite(t *testing.T) {
 	}
 
 	tmpFile := "test_jsonstore_overwrite.json"
-	defer os.Remove(filepath.Join(store.dir, tmpFile))
+	defer func() { _ = os.Remove(filepath.Join(store.dir, tmpFile)) }()
 
 	if err := store.Save(tmpFile, map[string]int{"a": 1}); err != nil {
 		t.Fatalf("首次 Save 失败: %v", err)

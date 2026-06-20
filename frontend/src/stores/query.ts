@@ -275,5 +275,15 @@ export const useQueryStore = defineStore('query', {
         ...this.tabs.slice(idx + 1),
       ]
     },
+
+    setLastQueryId(id: string, queryId: string): void {
+      const idx = this.tabs.findIndex((t) => t.id === id)
+      if (idx === -1) return
+      this.tabs = [
+        ...this.tabs.slice(0, idx),
+        { ...this.tabs[idx], lastQueryId: queryId },
+        ...this.tabs.slice(idx + 1),
+      ]
+    },
   },
 })

@@ -15,7 +15,6 @@ import { parseError } from '../composables/parseError'
 const store = useConnectionStore()
 const queryStore = useQueryStore()
 const layoutStore = useLayoutStore()
-const treeCompRef = ref<InstanceType<typeof ConnectionTree> | null>(null)
 const treeData = ref<TreeNode[]>([])
 const groupDialogVisible = ref(false)
 const editingGroup = ref<{ id: string; name: string; parentId: string } | null>(null)
@@ -323,7 +322,6 @@ async function handleDropTable(connId: string, dbName: string, tableName: string
       </div>
     </div>
     <ConnectionTree
-      ref="treeCompRef"
       :nodes="treeData"
       :load-fn="handleLoadNode"
       @node-click="handleNodeClick"

@@ -37,7 +37,10 @@ func TestFilterGroupIsLeafNonEmptyConditions(t *testing.T) {
 }
 
 func TestResultTypeConstants(t *testing.T) {
-	for _, tt := range []struct{ name string; got, want ResultType }{{"success", ResultSuccess, "success"}, {"error", ResultError, "error"}, {"info", ResultInfo, "info"}} {
+	for _, tt := range []struct {
+		name      string
+		got, want ResultType
+	}{{"success", ResultSuccess, "success"}, {"error", ResultError, "error"}, {"info", ResultInfo, "info"}} {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.got != tt.want {
 				t.Fatalf("got %q want %q", tt.got, tt.want)
@@ -47,7 +50,10 @@ func TestResultTypeConstants(t *testing.T) {
 }
 
 func TestSortOrderConstants(t *testing.T) {
-	for _, tt := range []struct{ name string; got, want SortOrder }{{"asc", SortASC, "ASC"}, {"desc", SortDESC, "DESC"}} {
+	for _, tt := range []struct {
+		name      string
+		got, want SortOrder
+	}{{"asc", SortASC, "ASC"}, {"desc", SortDESC, "DESC"}} {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.got != tt.want {
 				t.Fatalf("got %q want %q", tt.got, tt.want)
@@ -57,7 +63,10 @@ func TestSortOrderConstants(t *testing.T) {
 }
 
 func TestFilterOperatorConstants(t *testing.T) {
-	for _, tt := range []struct{ name string; got, want FilterOperator }{{"eq", OpEQ, "eq"}, {"neq", OpNEQ, "neq"}, {"contains", OpContains, "contains"}, {"gt", OpGT, "gt"}, {"lt", OpLT, "lt"}, {"isnull", OpIsNull, "isnull"}, {"notnull", OpNotNull, "notnull"}} {
+	for _, tt := range []struct {
+		name      string
+		got, want FilterOperator
+	}{{"eq", OpEQ, "eq"}, {"neq", OpNEQ, "neq"}, {"contains", OpContains, "contains"}, {"gt", OpGT, "gt"}, {"lt", OpLT, "lt"}, {"isnull", OpIsNull, "isnull"}, {"notnull", OpNotNull, "notnull"}} {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.got != tt.want {
 				t.Fatalf("got %q want %q", tt.got, tt.want)
@@ -67,7 +76,10 @@ func TestFilterOperatorConstants(t *testing.T) {
 }
 
 func TestLogicOpConstants(t *testing.T) {
-	for _, tt := range []struct{ name string; got, want LogicOp }{{"and", LogicAND, "AND"}, {"or", LogicOR, "OR"}} {
+	for _, tt := range []struct {
+		name      string
+		got, want LogicOp
+	}{{"and", LogicAND, "AND"}, {"or", LogicOR, "OR"}} {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.got != tt.want {
 				t.Fatalf("got %q want %q", tt.got, tt.want)

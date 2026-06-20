@@ -171,10 +171,22 @@ async function handleExecute(tabId: string) {
     const result = await promise
     if (result) {
       store.setResult(tabId, result)
+      if (result.queryId) {
+        store.setLastQueryId(tabId, result.queryId)
+      }
+      void recordHistory(
+        tab.connectionId,
+        tab.database,
+        tab.sql,
+        result.duration,
+        result.rows?.length ?? 0,
+        true,
+      )
     }
   } catch (err: unknown) {
     const msg = parseError(err)
     store.addMessage(tabId, msg)
+    void recordHistory(tab.connectionId, tab.database, tab.sql, 0, 0, false)
   } finally {
     executePromises.delete(tabId)
     store.setExecuting(tabId, false)
@@ -182,6 +194,12 @@ async function handleExecute(tabId: string) {
 }
 
 function handleStop(tabId: string) {
+  const tab = store.tabs.find((t) => t.id === tabId)
+  if (tab?.lastQueryId) {
+    QueryService.CancelQuery(tab.lastQueryId).catch(() => {
+      /* query may have already completed */
+    })
+  }
   const p = executePromises.get(tabId)
   if (p) {
     p.cancel()
@@ -190,6 +208,42 @@ function handleStop(tabId: string) {
   store.addMessage(tabId, '查询已取消')
   store.setExecuting(tabId, false)
 }
+
+// ── History recording ──
+
+function genHistoryID(): string {
+  return `hist_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+async function recordHistory(
+  connectionId: string,
+  database: string,
+  sql: string,
+  duration: number,
+  rowCount: number,
+  success: boolean,
+) {
+  try {
+    const existing = await QueryService.LoadHistory()
+    const entries = [
+      {
+        id: genHistoryID(),
+        connectionId,
+        database,
+        sql,
+        timestamp: Date.now(),
+        duration,
+        rowCount,
+        success,
+      },
+      ...existing,
+    ]
+    await QueryService.SaveHistory(entries)
+  } catch {
+    /* fire and forget */
+  }
+}
+
 
 // ── Tab persistence ──
 

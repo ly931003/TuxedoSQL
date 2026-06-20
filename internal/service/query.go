@@ -15,17 +15,21 @@ const maxRows = 10000
 
 // QueryService 管理 SQL 查询执行和标签页持久化。
 type QueryService struct {
-	connManager *repository.ConnectionManager
-	connRepo    *repository.ConnectionRepository
-	tabRepo     *repository.TabRepository
+	connManager repository.PoolManager
+	connRepo    repository.ConnectionStore
+	tabRepo     repository.TabStore
+	historyRepo repository.HistoryStore
+	registry    *QueryRegistry
 }
 
 // NewQueryService 创建一个新的 QueryService。
-func NewQueryService(connManager *repository.ConnectionManager, connRepo *repository.ConnectionRepository, tabRepo *repository.TabRepository) *QueryService {
+func NewQueryService(connManager repository.PoolManager, connRepo repository.ConnectionStore, tabRepo repository.TabStore, historyRepo repository.HistoryStore) *QueryService {
 	return &QueryService{
 		connManager: connManager,
 		connRepo:    connRepo,
 		tabRepo:     tabRepo,
+		historyRepo: historyRepo,
+		registry:    NewQueryRegistry(),
 	}
 }
 
@@ -41,12 +45,19 @@ func (s *QueryService) Execute(connectionID, database, sqlStmt string) (*model.Q
 		return nil, fmt.Errorf("数据库名不能为空")
 	}
 
+	queryID := generateQueryID()
 	_, db, err := s.connManager.GetDBByID(connectionID, database)
 	if err != nil {
-		return nil, err
+		return &model.QueryResult{
+			QueryID:     queryID,
+			Message:     err.Error(),
+			MessageType: model.ResultError,
+		}, err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	s.registry.Register(queryID, cancel)
+	defer s.registry.Remove(queryID)
 	defer cancel()
 
 	start := time.Now()
@@ -54,9 +65,17 @@ func (s *QueryService) Execute(connectionID, database, sqlStmt string) (*model.Q
 	trimmed := strings.TrimSpace(sqlStmt)
 
 	if isQueryStatement(trimmed) {
-		return s.executeQuery(ctx, db, trimmed, start)
+		return s.executeQuery(ctx, db, trimmed, start, queryID)
 	}
-	return s.executeExec(ctx, db, trimmed, start)
+	return s.executeExec(ctx, db, trimmed, start, queryID)
+}
+
+func generateQueryID() string {
+	return fmt.Sprintf("q-%d", time.Now().UnixNano())
+}
+
+func (s *QueryService) CancelQuery(queryID string) error {
+	return s.registry.Cancel(queryID)
 }
 
 func isQueryStatement(sqlStmt string) bool {
@@ -69,12 +88,12 @@ func isQueryStatement(sqlStmt string) bool {
 		strings.HasPrefix(upper, "WITH")
 }
 
-func (s *QueryService) executeQuery(ctx context.Context, db *sql.DB, sqlStmt string, start time.Time) (*model.QueryResult, error) {
+func (s *QueryService) executeQuery(ctx context.Context, db *sql.DB, sqlStmt string, start time.Time, queryID string) (*model.QueryResult, error) {
 	rows, err := db.QueryContext(ctx, sqlStmt)
 	if err != nil {
 		return nil, fmt.Errorf("执行查询失败: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	columnTypes, err := rows.ColumnTypes()
 	if err != nil {
@@ -138,10 +157,11 @@ func (s *QueryService) executeQuery(ctx context.Context, db *sql.DB, sqlStmt str
 		Message:     message,
 		MessageType: model.ResultSuccess,
 		Duration:    duration,
+		QueryID:     queryID,
 	}, nil
 }
 
-func (s *QueryService) executeExec(ctx context.Context, db *sql.DB, sqlStmt string, start time.Time) (*model.QueryResult, error) {
+func (s *QueryService) executeExec(ctx context.Context, db *sql.DB, sqlStmt string, start time.Time, queryID string) (*model.QueryResult, error) {
 	result, err := db.ExecContext(ctx, sqlStmt)
 	if err != nil {
 		return nil, fmt.Errorf("执行语句失败: %w", err)
@@ -156,6 +176,7 @@ func (s *QueryService) executeExec(ctx context.Context, db *sql.DB, sqlStmt stri
 		Message:      message,
 		MessageType:  model.ResultSuccess,
 		Duration:     duration,
+		QueryID:      queryID,
 	}, nil
 }
 
@@ -167,6 +188,18 @@ func (s *QueryService) SaveTabs(tabs []model.TabState) error {
 // LoadTabs 从持久化存储中恢复标签页状态。
 func (s *QueryService) LoadTabs() ([]model.TabState, error) {
 	return s.tabRepo.LoadTabs()
+}
+
+func (s *QueryService) SaveHistory(entries []model.QueryHistoryEntry) error {
+	return s.historyRepo.SaveHistory(entries)
+}
+
+func (s *QueryService) LoadHistory() ([]model.QueryHistoryEntry, error) {
+	return s.historyRepo.LoadHistory()
+}
+
+func (s *QueryService) ClearHistory() error {
+	return s.historyRepo.SaveHistory([]model.QueryHistoryEntry{})
 }
 
 // allowedOperators 是所有合法筛选操作符的白名单集合。
@@ -214,7 +247,7 @@ func (s *QueryService) GetTableSchema(connectionID, database, table string) ([]m
 	if err != nil {
 		return nil, fmt.Errorf("查询表结构失败: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var schemas []model.TableSchema
 	for rows.Next() {
@@ -374,7 +407,7 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 	if err != nil {
 		return nil, fmt.Errorf("查询表数据失败: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	columnTypes, err := rows.ColumnTypes()
 	if err != nil {
@@ -749,7 +782,7 @@ func (s *QueryService) GetDBSchemaForCompletion(connectionID, database string) (
 	if err != nil {
 		return nil, fmt.Errorf("查询表列表失败: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type tblEntry struct {
 		Name string
@@ -800,7 +833,7 @@ func (s *QueryService) GetDBSchemaForCompletion(connectionID, database string) (
 	if err != nil {
 		return nil, fmt.Errorf("查询列信息失败: %w", err)
 	}
-	defer colRows.Close()
+	defer func() { _ = colRows.Close() }()
 
 	for colRows.Next() {
 		var tbl, col string

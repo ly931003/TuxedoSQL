@@ -14,13 +14,13 @@ import (
 
 // ConnectionService 管理数据库连接的增删改查、测试和元数据浏览。
 type ConnectionService struct {
-	repo        *repository.ConnectionRepository
-	connManager *repository.ConnectionManager
+	repo        repository.ConnectionStore
+	connManager repository.PoolManager
 }
 
 // NewConnectionService 创建一个新的 ConnectionService。
 // connManager 可以为 nil（仅测试场景不需要数据库连接时）。
-func NewConnectionService(connManager *repository.ConnectionManager, connRepo *repository.ConnectionRepository) *ConnectionService {
+func NewConnectionService(connManager repository.PoolManager, connRepo repository.ConnectionStore) *ConnectionService {
 	return &ConnectionService{
 		repo:        connRepo,
 		connManager: connManager,
@@ -209,7 +209,7 @@ func (s *ConnectionService) GetDatabases(connectionID string) ([]string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var databases []string
 	for rows.Next() {
@@ -248,7 +248,7 @@ func (s *ConnectionService) GetTables(connectionID, databaseName string) ([]stri
 	if err != nil {
 		return nil, fmt.Errorf("查询表列表失败: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var tables []string
 	for rows.Next() {
@@ -656,7 +656,7 @@ func (s *ConnectionService) GetCharsets(connectionID string) ([]model.CharsetInf
 	if err != nil {
 		return nil, fmt.Errorf("查询字符集失败: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var charsets []model.CharsetInfo
 	for rows.Next() {
@@ -709,7 +709,7 @@ func (s *ConnectionService) GetCollations(connectionID, charset string) ([]strin
 	if err != nil {
 		return nil, fmt.Errorf("查询排序规则失败: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var collations []string
 	for rows.Next() {

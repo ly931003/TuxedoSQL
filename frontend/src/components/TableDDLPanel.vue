@@ -91,7 +91,7 @@ watch(() => [props.connectionId, props.database, props.tableName], loadDDL)
 
 .ddl-copy-btn:hover {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
 }
 
 .ddl-loading,
@@ -104,7 +104,7 @@ watch(() => [props.connectionId, props.database, props.tableName], loadDDL)
 
 .ddl-error {
   font-size: 12px;
-  color: #e74c3c;
+  color: var(--color-danger);
   text-align: center;
   padding: 16px;
 }

@@ -1,6 +1,7 @@
 import type {
   ColumnInfo,
   QueryResult,
+  QueryHistoryEntry,
   TabState,
   TableSchema,
   FilterGroup,
@@ -15,6 +16,7 @@ import { SortOrder, FilterOperator, LogicOp } from '../../bindings/tuxedosql/int
 export type {
   ColumnInfo,
   QueryResult,
+  QueryHistoryEntry,
   TabState,
   TableSchema,
   FilterGroup,
@@ -56,6 +58,7 @@ export interface QueryTab {
   messages: string[]
   isExecuting: boolean
   tableName?: string
+  lastQueryId?: string
   lastExecutedSQL?: string
   page?: number
   pageSize?: number

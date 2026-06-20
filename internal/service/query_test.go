@@ -8,16 +8,20 @@ import (
 	"tuxedosql/pkg/fileutil"
 )
 
-func newTestQueryService() *QueryService {
+func newTestQueryService(t *testing.T) *QueryService {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+
 	store, _ := fileutil.NewJSONStore()
 	connRepo := repository.NewConnectionRepository(store)
 	tabRepo := repository.NewTabRepository(store)
+	historyRepo := repository.NewHistoryRepository(store)
 	connManager := repository.NewConnectionManager(connRepo)
-	return NewQueryService(connManager, connRepo, tabRepo)
+	return NewQueryService(connManager, connRepo, tabRepo, historyRepo)
 }
 
 func TestQueryService_Execute_Validation(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 
 	tests := []struct {
 		name         string
@@ -62,15 +66,62 @@ func TestQueryService_Execute_Validation(t *testing.T) {
 }
 
 func TestQueryService_Execute_NotFound(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.Execute("不存在的连接ID", "testdb", "SELECT 1")
 	if err == nil {
 		t.Error("对不存在的连接执行查询应返回错误")
 	}
 }
 
+func TestExecuteReturnsQueryID(t *testing.T) {
+	tests := []struct {
+		name         string
+		connectionID string
+		database     string
+		sql          string
+	}{
+		{name: "连接错误结果应包含 QueryID", connectionID: "不存在的连接ID", database: "testdb", sql: "SELECT 1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestQueryService(t)
+
+			result, err := svc.Execute(tt.connectionID, tt.database, tt.sql)
+			if err == nil {
+				t.Fatal("期望返回错误，但没有")
+			}
+			if result == nil {
+				t.Fatal("期望返回结果，但为 nil")
+			}
+			if result.QueryID == "" {
+				t.Fatal("期望返回非空 QueryID，但为空")
+			}
+		})
+	}
+}
+
+func TestCancelQueryUnknownID(t *testing.T) {
+	tests := []struct {
+		name    string
+		queryID string
+	}{
+		{name: "取消不存在的 QueryID 应报错", queryID: "nonexistent"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestQueryService(t)
+
+			if err := svc.CancelQuery(tt.queryID); err == nil {
+				t.Fatal("期望返回错误，但没有")
+			}
+		})
+	}
+}
+
 func TestQueryService_SaveLoadTabs(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 
 	tabs := []model.TabState{
 		{ID: "tab_1", Title: "Query 1", ConnectionID: "conn_1", Database: "testdb", SQL: "SELECT 1"},
@@ -101,7 +152,7 @@ func TestQueryService_SaveLoadTabs(t *testing.T) {
 }
 
 func TestQueryService_LoadTabs_EmptyFile(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	if err := svc.SaveTabs([]model.TabState{}); err != nil {
 		t.Fatalf("保存空标签列表失败: %v", err)
 	}
@@ -117,9 +168,9 @@ func TestQueryService_LoadTabs_EmptyFile(t *testing.T) {
 
 func TestQueryService_IsQueryDetection(t *testing.T) {
 	tests := []struct {
-		name     string
-		sql      string
-		isQuery  bool
+		name    string
+		sql     string
+		isQuery bool
 	}{
 		{name: "SELECT", sql: "SELECT * FROM users", isQuery: true},
 		{name: "select lowercase", sql: "select * from users", isQuery: true},
@@ -207,7 +258,7 @@ func TestBuildFilterClause_GroupValidation(t *testing.T) {
 }
 
 func TestQueryService_GetTableSchema_Validation(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	tests := []struct {
 		name         string
 		connectionID string
@@ -236,7 +287,7 @@ func TestQueryService_GetTableSchema_Validation(t *testing.T) {
 }
 
 func TestQueryService_GetTableSchema_NotFound(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.GetTableSchema("不存在的连接ID", "testdb", "users")
 	if err == nil {
 		t.Error("对不存在的连接查询表结构应返回错误")
@@ -244,7 +295,7 @@ func TestQueryService_GetTableSchema_NotFound(t *testing.T) {
 }
 
 func TestQueryService_GetTableData_Validation(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	t.Run("空连接ID应报错", func(t *testing.T) {
 		_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "", Database: "testdb", Table: "users", Page: 1, PageSize: 100})
 		if err == nil {
@@ -266,7 +317,7 @@ func TestQueryService_GetTableData_Validation(t *testing.T) {
 }
 
 func TestQueryService_GetTableData_PageDefaults(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_fake", Database: "testdb", Table: "users", Page: 0, PageSize: 2000})
 	if err == nil {
 		t.Error("假连接应返回错误（连接错误，非参数错误）")
@@ -274,7 +325,7 @@ func TestQueryService_GetTableData_PageDefaults(t *testing.T) {
 }
 
 func TestGetTableData_SortColumnWhitelist(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Page: 1, PageSize: 100, SortColumn: "1=1; DROP TABLE users", SortOrder: model.SortASC})
 	if err == nil {
 		t.Error("假连接应返回错误")
@@ -282,7 +333,7 @@ func TestGetTableData_SortColumnWhitelist(t *testing.T) {
 }
 
 func TestGetTableData_InvalidSortOrder(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Page: 1, PageSize: 100, SortColumn: "name", SortOrder: "DROP TABLE"})
 	if err == nil {
 		t.Error("假连接应返回错误")
@@ -290,7 +341,7 @@ func TestGetTableData_InvalidSortOrder(t *testing.T) {
 }
 
 func TestGetTableData_InvalidFilterColumn(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: &model.FilterGroup{Column: "1=1; DROP TABLE", Operator: model.OpEQ, Value: "x"}})
 	if err == nil {
 		t.Error("假连接应返回错误")
@@ -298,7 +349,7 @@ func TestGetTableData_InvalidFilterColumn(t *testing.T) {
 }
 
 func TestGetTableData_InvalidFilterOperator(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: &model.FilterGroup{Column: "name", Operator: "invalid_op", Value: "x"}})
 	if err == nil {
 		t.Error("假连接应返回错误")
@@ -342,7 +393,7 @@ func TestAllowedOperators(t *testing.T) {
 }
 
 func TestGetTableData_PageBoundaries(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	tests := []struct {
 		name     string
 		page     int
@@ -369,7 +420,7 @@ func TestGetTableData_PageBoundaries(t *testing.T) {
 }
 
 func TestGetTableData_EmptyFilters(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_fake", Database: "testdb", Table: "users", Page: 1, PageSize: 100, Filters: nil})
 	if err == nil {
 		t.Error("假连接应返回错误（连接错误，非参数错误）")
@@ -377,7 +428,7 @@ func TestGetTableData_EmptyFilters(t *testing.T) {
 }
 
 func TestGetTableData_NoSorting(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.GetTableData(model.TableDataParams{ConnectionID: "conn_fake", Database: "testdb", Table: "users", Page: 1, PageSize: 100, SortColumn: "", SortOrder: ""})
 	if err == nil {
 		t.Error("假连接应返回错误（连接错误，非参数错误）")
@@ -385,7 +436,7 @@ func TestGetTableData_NoSorting(t *testing.T) {
 }
 
 func TestGetTableData_AllFilterOperators(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	operators := []model.FilterOperator{model.OpEQ, model.OpNEQ, model.OpContains, model.OpGT, model.OpLT, model.OpIsNull, model.OpNotNull}
 	for _, op := range operators {
 		t.Run(string(op), func(t *testing.T) {
@@ -398,7 +449,7 @@ func TestGetTableData_AllFilterOperators(t *testing.T) {
 }
 
 func TestGetTableSchema_EmptyTableName(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	tests := []struct {
 		name         string
 		connectionID string
@@ -422,7 +473,7 @@ func TestGetTableSchema_EmptyTableName(t *testing.T) {
 }
 
 func TestQueryService_Execute_SQLInjectionAttempts(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	sqls := []string{
 		"SELECT * FROM users; DROP TABLE users",
 		"SELECT * FROM users WHERE 1=1; DELETE FROM users",
@@ -445,7 +496,7 @@ func TestQueryService_Execute_SQLInjectionAttempts(t *testing.T) {
 }
 
 func TestQueryService_UpdateRow_Validation(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	tests := []struct {
 		name    string
 		params  model.UpdateRowParams
@@ -470,7 +521,7 @@ func TestQueryService_UpdateRow_Validation(t *testing.T) {
 }
 
 func TestQueryService_UpdateRow_InvalidColumn(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.UpdateRow(model.UpdateRowParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Column: "1=1; DROP TABLE users", PkValues: map[string]any{"id": 1}, NewValue: "test"})
 	if err == nil {
 		t.Error("SQL注入列名应返回错误")
@@ -478,7 +529,7 @@ func TestQueryService_UpdateRow_InvalidColumn(t *testing.T) {
 }
 
 func TestQueryService_UpdateRow_InvalidPkColumn(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	_, err := svc.UpdateRow(model.UpdateRowParams{ConnectionID: "conn_test", Database: "testdb", Table: "users", Column: "name", PkValues: map[string]any{"1=1; DROP": 1}, NewValue: "test"})
 	if err == nil {
 		t.Error("SQL注入主键列名应返回错误")
@@ -486,7 +537,7 @@ func TestQueryService_UpdateRow_InvalidPkColumn(t *testing.T) {
 }
 
 func TestQueryService_GetDBSchemaForCompletion_Validation(t *testing.T) {
-	svc := newTestQueryService()
+	svc := newTestQueryService(t)
 	tests := []struct {
 		name         string
 		connectionID string

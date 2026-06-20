@@ -88,6 +88,36 @@ export function UpdateRow(params: model$0.UpdateRowParams): $CancellablePromise<
     });
 }
 
+/**
+ * CancelQuery 取消指定 ID 的正在执行的查询。
+ */
+export function CancelQuery(queryID: string): $CancellablePromise<void> {
+    return $Call.ByID(3752380053, queryID);
+}
+
+/**
+ * ClearHistory 清空所有查询历史记录。
+ */
+export function ClearHistory(): $CancellablePromise<void> {
+    return $Call.ByID(1982290510);
+}
+
+/**
+ * LoadHistory 加载所有查询历史记录。
+ */
+export function LoadHistory(): $CancellablePromise<model$0.QueryHistoryEntry[]> {
+    return $Call.ByID(903163831).then(($result: any) => {
+        return $$createType13($result);
+    });
+}
+
+/**
+ * SaveHistory 保存查询历史记录。
+ */
+export function SaveHistory(entries: model$0.QueryHistoryEntry[]): $CancellablePromise<void> {
+    return $Call.ByID(1441455780, entries);
+}
+
 // Private type creation functions
 const $$createType0 = model$0.QueryResult.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
@@ -101,3 +131,5 @@ const $$createType8 = model$0.TabState.createFrom;
 const $$createType9 = $Create.Array($$createType8);
 const $$createType10 = model$0.UpdateRowResult.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = model$0.QueryHistoryEntry.createFrom;
+const $$createType13 = $Create.Array($$createType12);

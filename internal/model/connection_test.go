@@ -42,28 +42,36 @@ func TestConnectionGroupJSONRoundTrip(t *testing.T) {
 func TestTreeNodeGroupType(t *testing.T) {
 	t.Run("group node keeps type and non-leaf", func(t *testing.T) {
 		got := roundTripJSON(t, TreeNode{Key: "g1", Label: "Group", Type: "group", Leaf: false})
-		if got.Type != "group" || got.Leaf || len(got.Children) != 0 { t.Fatalf("unexpected node: %#v", got) }
+		if got.Type != "group" || got.Leaf || len(got.Children) != 0 {
+			t.Fatalf("unexpected node: %#v", got)
+		}
 	})
 }
 
 func TestTreeNodeConnectionType(t *testing.T) {
 	t.Run("connection node keeps type", func(t *testing.T) {
 		got := roundTripJSON(t, TreeNode{Key: "c1", Label: "Conn", Type: "connection", Leaf: false})
-		if got.Type != "connection" || got.Leaf { t.Fatalf("unexpected node: %#v", got) }
+		if got.Type != "connection" || got.Leaf {
+			t.Fatalf("unexpected node: %#v", got)
+		}
 	})
 }
 
 func TestTreeNodeDatabaseType(t *testing.T) {
 	t.Run("database node keeps type", func(t *testing.T) {
 		got := roundTripJSON(t, TreeNode{Key: "d1", Label: "app", Type: "database", Leaf: false})
-		if got.Type != "database" || got.Leaf { t.Fatalf("unexpected node: %#v", got) }
+		if got.Type != "database" || got.Leaf {
+			t.Fatalf("unexpected node: %#v", got)
+		}
 	})
 }
 
 func TestTreeNodeTableType(t *testing.T) {
 	t.Run("table node keeps type and leaf", func(t *testing.T) {
 		got := roundTripJSON(t, TreeNode{Key: "t1", Label: "users", Type: "table", Leaf: true})
-		if got.Type != "table" || !got.Leaf { t.Fatalf("unexpected node: %#v", got) }
+		if got.Type != "table" || !got.Leaf {
+			t.Fatalf("unexpected node: %#v", got)
+		}
 	})
 }
 
@@ -98,28 +106,36 @@ func TestUpdateConnectionParamsJSONRoundTrip(t *testing.T) {
 func TestCreateGroupParamsJSONRoundTrip(t *testing.T) {
 	t.Run("create group excludes id", func(t *testing.T) {
 		got := roundTripJSON(t, CreateGroupParams{Name: "Reporting", ParentID: "root"})
-		if got.Name != "Reporting" || got.ParentID != "root" { t.Fatalf("unexpected create group: %#v", got) }
+		if got.Name != "Reporting" || got.ParentID != "root" {
+			t.Fatalf("unexpected create group: %#v", got)
+		}
 	})
 }
 
 func TestUpdateGroupParamsJSONRoundTrip(t *testing.T) {
 	t.Run("update group includes id", func(t *testing.T) {
 		got := roundTripJSON(t, UpdateGroupParams{ID: "grp-2", Name: "Reporting", ParentID: "root"})
-		if got.ID != "grp-2" || got.Name != "Reporting" || got.ParentID != "root" { t.Fatalf("unexpected update group: %#v", got) }
+		if got.ID != "grp-2" || got.Name != "Reporting" || got.ParentID != "root" {
+			t.Fatalf("unexpected update group: %#v", got)
+		}
 	})
 }
 
 func TestCreateDatabaseParamsWithCharsetAndCollation(t *testing.T) {
 	t.Run("database params keep charset and collation", func(t *testing.T) {
 		got := roundTripJSON(t, CreateDatabaseParams{ConnectionID: "conn-1", DatabaseName: "analytics", Charset: "utf8mb4", Collation: "utf8mb4_unicode_ci"})
-		if got.ConnectionID != "conn-1" || got.DatabaseName != "analytics" || got.Charset != "utf8mb4" || got.Collation != "utf8mb4_unicode_ci" { t.Fatalf("unexpected database params: %#v", got) }
+		if got.ConnectionID != "conn-1" || got.DatabaseName != "analytics" || got.Charset != "utf8mb4" || got.Collation != "utf8mb4_unicode_ci" {
+			t.Fatalf("unexpected database params: %#v", got)
+		}
 	})
 }
 
 func TestCreateDatabaseParamsWithoutCharsetAndCollation(t *testing.T) {
 	t.Run("database params allow empty charset and collation", func(t *testing.T) {
 		got := roundTripJSON(t, CreateDatabaseParams{ConnectionID: "conn-1", DatabaseName: "analytics"})
-		if got.ConnectionID != "conn-1" || got.DatabaseName != "analytics" || got.Charset != "" || got.Collation != "" { t.Fatalf("unexpected database params: %#v", got) }
+		if got.ConnectionID != "conn-1" || got.DatabaseName != "analytics" || got.Charset != "" || got.Collation != "" {
+			t.Fatalf("unexpected database params: %#v", got)
+		}
 	})
 }
 
@@ -135,34 +151,44 @@ func TestCreateTableParamsWithColumns(t *testing.T) {
 func TestColumnDefBooleanFieldsTrue(t *testing.T) {
 	t.Run("boolean true flags survive", func(t *testing.T) {
 		got := roundTripJSON(t, ColumnDef{Name: "id", DataType: "INT", Nullable: true, DefaultValue: "0", AutoIncrement: true, Unsigned: true, Comment: "identifier", IsPrimaryKey: true})
-		if !got.Nullable || !got.AutoIncrement || !got.Unsigned || !got.IsPrimaryKey { t.Fatalf("unexpected booleans: %#v", got) }
+		if !got.Nullable || !got.AutoIncrement || !got.Unsigned || !got.IsPrimaryKey {
+			t.Fatalf("unexpected booleans: %#v", got)
+		}
 	})
 }
 
 func TestColumnDefBooleanFieldsFalse(t *testing.T) {
 	t.Run("boolean false flags survive", func(t *testing.T) {
 		got := roundTripJSON(t, ColumnDef{Name: "name", DataType: "VARCHAR(64)", Nullable: false, AutoIncrement: false, Unsigned: false, IsPrimaryKey: false})
-		if got.Nullable || got.AutoIncrement || got.Unsigned || got.IsPrimaryKey { t.Fatalf("unexpected booleans: %#v", got) }
+		if got.Nullable || got.AutoIncrement || got.Unsigned || got.IsPrimaryKey {
+			t.Fatalf("unexpected booleans: %#v", got)
+		}
 	})
 }
 
 func TestTestResultJSONRoundTrip(t *testing.T) {
 	t.Run("success and message survive", func(t *testing.T) {
 		got := roundTripJSON(t, TestResult{Success: true, Message: "connected"})
-		if !got.Success || got.Message != "connected" { t.Fatalf("unexpected test result: %#v", got) }
+		if !got.Success || got.Message != "connected" {
+			t.Fatalf("unexpected test result: %#v", got)
+		}
 	})
 }
 
 func TestDDLResultJSONRoundTrip(t *testing.T) {
 	t.Run("sql and message survive", func(t *testing.T) {
 		got := roundTripJSON(t, DDLResult{SQL: "CREATE TABLE users(id INT PRIMARY KEY)", Message: "created"})
-		if got.SQL == "" || got.Message != "created" { t.Fatalf("unexpected ddl result: %#v", got) }
+		if got.SQL == "" || got.Message != "created" {
+			t.Fatalf("unexpected ddl result: %#v", got)
+		}
 	})
 }
 
 func TestCharsetInfoJSONRoundTrip(t *testing.T) {
 	t.Run("charset metadata survives", func(t *testing.T) {
 		got := roundTripJSON(t, CharsetInfo{Charset: "utf8mb4", DefaultCollation: "utf8mb4_0900_ai_ci", Description: "UTF-8 Unicode"})
-		if got.Charset != "utf8mb4" || got.DefaultCollation != "utf8mb4_0900_ai_ci" || got.Description != "UTF-8 Unicode" { t.Fatalf("unexpected charset info: %#v", got) }
+		if got.Charset != "utf8mb4" || got.DefaultCollation != "utf8mb4_0900_ai_ci" || got.Description != "UTF-8 Unicode" {
+			t.Fatalf("unexpected charset info: %#v", got)
+		}
 	})
 }

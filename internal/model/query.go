@@ -23,6 +23,7 @@ type QueryResult struct {
 	Message      string           `json:"message"`      // 执行状态消息，如 "3 rows affected"
 	MessageType  ResultType       `json:"messageType"`  // 消息类型：success / error / info
 	Duration     int64            `json:"duration"`     // 执行耗时（毫秒）
+	QueryID      string           `json:"queryId"`
 }
 
 // TabState 表示一个持久化的查询标签页状态，用于应用重启后恢复标签。
@@ -32,6 +33,17 @@ type TabState struct {
 	ConnectionID string `json:"connectionId"` // 关联的连接ID
 	Database     string `json:"database"`     // 当前选中的数据库
 	SQL          string `json:"sql"`          // 编辑器中的 SQL 文本
+}
+
+type QueryHistoryEntry struct {
+	ID           string `json:"id"`
+	ConnectionID string `json:"connectionId"`
+	Database     string `json:"database"`
+	SQL          string `json:"sql"`
+	Timestamp    int64  `json:"timestamp"`
+	Duration     int64  `json:"duration"`
+	RowCount     int64  `json:"rowCount"`
+	Success      bool   `json:"success"`
 }
 
 // TableSchema 表示表的一列结构元数据，来自 INFORMATION_SCHEMA.COLUMNS。
@@ -82,11 +94,11 @@ type FilterCondition struct {
 // FilterGroup 表示一个可嵌套的布尔筛选表达式。
 // 若 Conditions 非空，则为 AND/OR 组合节点；否则为叶子节点（使用 Column/Operator/Value）。
 type FilterGroup struct {
-	Logic      LogicOp          `json:"logic"`      // 组合逻辑：AND 或 OR
-	Conditions []*FilterGroup   `json:"conditions"`  // 嵌套子组（至少 2 个）
-	Column     string           `json:"column"`      // 叶子节点：列名
-	Operator   FilterOperator   `json:"operator"`    // 叶子节点：操作符
-	Value      string           `json:"value"`       // 叶子节点：筛选值
+	Logic      LogicOp        `json:"logic"`      // 组合逻辑：AND 或 OR
+	Conditions []*FilterGroup `json:"conditions"` // 嵌套子组（至少 2 个）
+	Column     string         `json:"column"`     // 叶子节点：列名
+	Operator   FilterOperator `json:"operator"`   // 叶子节点：操作符
+	Value      string         `json:"value"`      // 叶子节点：筛选值
 }
 
 // IsLeaf reports whether this group is a leaf condition (not a logic group).

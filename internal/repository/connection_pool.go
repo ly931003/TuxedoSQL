@@ -19,11 +19,11 @@ import (
 type ConnectionManager struct {
 	mu       sync.RWMutex
 	pools    map[string]*sql.DB // key: connectionID:database
-	connRepo *ConnectionRepository
+	connRepo ConnectionStore
 }
 
 // NewConnectionManager 创建一个新的 ConnectionManager。
-func NewConnectionManager(connRepo *ConnectionRepository) *ConnectionManager {
+func NewConnectionManager(connRepo ConnectionStore) *ConnectionManager {
 	return &ConnectionManager{
 		pools:    make(map[string]*sql.DB),
 		connRepo: connRepo,
@@ -101,7 +101,7 @@ func (m *ConnectionManager) GetDB(conn *model.Connection, database string) (*sql
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("连接测试失败: %w", err)
 	}
 
@@ -134,7 +134,7 @@ func (m *ConnectionManager) Close(connectionID string) {
 	prefix := connectionID + ":"
 	for key, db := range m.pools {
 		if len(key) >= len(prefix) && key[:len(prefix)] == prefix {
-			db.Close()
+			_ = db.Close()
 			delete(m.pools, key)
 		}
 	}
@@ -146,7 +146,7 @@ func (m *ConnectionManager) CloseAll() {
 	defer m.mu.Unlock()
 
 	for id, db := range m.pools {
-		db.Close()
+		_ = db.Close()
 		delete(m.pools, id)
 	}
 }

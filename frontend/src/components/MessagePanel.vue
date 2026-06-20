@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { getMessageClass } from '../lib/messageClassify'
 
 const props = defineProps<{
   messages: string[]
@@ -10,12 +11,6 @@ const collapsed = ref(false) // 默认展开，让用户看到 SQL
 
 const hasMessages = computed(() => props.messages.length > 0)
 
-function getMessageClass(msg: string): string {
-  if (props.messageType === 'success') return 'msg-success'
-  if (props.messageType === 'error') return 'msg-error'
-  if (msg.startsWith('✅')) return 'msg-audit'
-  return 'msg-info'
-}
 </script>
 
 <template>
@@ -27,7 +22,7 @@ function getMessageClass(msg: string): string {
     </div>
     <div v-if="!collapsed" class="msg-list">
       <div v-if="!hasMessages" class="msg-empty">暂无消息。编辑操作产生的 SQL 将显示在此处。</div>
-      <div v-for="(msg, idx) in messages" :key="idx" class="msg-item" :class="getMessageClass(msg)">
+      <div v-for="(msg, idx) in messages" :key="idx" class="msg-item" :class="getMessageClass(msg, props.messageType)">
         {{ msg }}
       </div>
     </div>
@@ -102,10 +97,10 @@ function getMessageClass(msg: string): string {
 }
 
 .msg-error {
-  color: #e74c3c;
+  color: var(--color-danger);
 }
 .msg-success {
-  color: #27ae60;
+  color: var(--color-success);
 }
 .msg-info {
   color: var(--color-text-secondary);

@@ -62,7 +62,7 @@ func TestConnectionManagerCloseRemovesMatchingPrefixOnly(t *testing.T) {
 	db1 := newTestPoolDB(t)
 	db2 := newTestPoolDB(t)
 	db3 := newTestPoolDB(t)
-	defer db3.Close()
+	defer func() { _ = db3.Close() }()
 
 	m.pools["conn1:dbA"] = db1
 	m.pools["conn1:dbB"] = db2
