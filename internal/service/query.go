@@ -284,7 +284,8 @@ func (s *QueryService) GetCreateTable(connectionID, database, table string) (str
 		return "", err
 	}
 
-	safeTable := "`" + strings.ReplaceAll(table, "`", "``") + "`"
+	schema := s.connManager.Schema()
+	safeTable := schema.QuoteIdentifier(table)
 	query := "SHOW CREATE TABLE " + safeTable
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -342,6 +343,8 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 		return nil, err
 	}
 
+	schema := s.connManager.Schema()
+
 	// getColumnWhitelist 内部调用 GetTableSchema，其 DSN 已指定 database，无需额外 USE
 	whitelist, err := s.getColumnWhitelist(params.ConnectionID, params.Database, params.Table)
 	if err != nil {
@@ -359,10 +362,10 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 	}
 
 	// 安全构建表名引用
-	safeTable := "`" + strings.ReplaceAll(params.Table, "`", "``") + "`"
+	safeTable := schema.QuoteIdentifier(params.Table)
 
 	// 递归构建 WHERE 子句（参数化）
-	whereSQL, args, err := buildFilterClause(params.Filters, whitelist)
+	whereSQL, args, err := s.buildFilterClause(params.Filters, whitelist, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +377,7 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 	// 构建 ORDER BY 子句（列名已白名单校验，排序方向已校验）
 	orderClause := ""
 	if params.SortColumn != "" && params.SortOrder != "" {
-		safeSortCol := "`" + strings.ReplaceAll(params.SortColumn, "`", "``") + "`"
+		safeSortCol := schema.QuoteIdentifier(params.SortColumn)
 		orderClause = " ORDER BY " + safeSortCol + " " + string(params.SortOrder)
 	}
 
@@ -469,13 +472,13 @@ func (s *QueryService) GetTableData(params model.TableDataParams) (*model.PageRe
 		Message:     fmt.Sprintf("第 %d/%d 页，共 %d 行", params.Page, totalPages, total),
 		MessageType: model.ResultSuccess,
 		Duration:    duration,
-		SQL:         buildDisplaySQL(params, dataArgs),
+		SQL:         s.buildDisplaySQL(params, dataArgs, schema),
 	}, nil
 }
 
 // buildFilterClause 递归构建参数化 WHERE 子句，支持 AND/OR 嵌套。
 // 返回 (SQL 子句, 参数切片, 错误)。根节点为 nil 时返回空串。
-func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (string, []any, error) {
+func (s *QueryService) buildFilterClause(group *model.FilterGroup, whitelist map[string]bool, schema repository.SchemaIntrospector) (string, []any, error) {
 	if group == nil {
 		return "", nil, nil
 	}
@@ -486,7 +489,7 @@ func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (str
 		if !allowedOperators[group.Operator] {
 			return "", nil, fmt.Errorf("无效的筛选操作符: %s", group.Operator)
 		}
-		safeCol := "`" + strings.ReplaceAll(group.Column, "`", "``") + "`"
+		safeCol := schema.QuoteIdentifier(group.Column)
 		switch group.Operator {
 		case model.OpEQ:
 			return safeCol + " = ?", []any{group.Value}, nil
@@ -520,7 +523,7 @@ func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (str
 	var allArgs []any
 
 	for _, sub := range group.Conditions {
-		subSQL, subArgs, err := buildFilterClause(sub, whitelist)
+		subSQL, subArgs, err := s.buildFilterClause(sub, whitelist, schema)
 		if err != nil {
 			return "", nil, err
 		}
@@ -547,18 +550,18 @@ func buildFilterClause(group *model.FilterGroup, whitelist map[string]bool) (str
 }
 
 // buildDisplaySQL 构建带实际参数值的可读 SELECT 语句，用于审计展示。
-func buildDisplaySQL(params model.TableDataParams, args []any) string {
-	safeTable := "`" + strings.ReplaceAll(params.Table, "`", "``") + "`"
+func (s *QueryService) buildDisplaySQL(params model.TableDataParams, args []any, schema repository.SchemaIntrospector) string {
+	safeTable := schema.QuoteIdentifier(params.Table)
 
 	// 构建 WHERE clause — 递归渲染 FilterGroup 为展示 SQL
 	var whereClause string
 	if params.Filters != nil {
-		whereClause = " WHERE " + buildDisplayFilter(params.Filters)
+		whereClause = " WHERE " + s.buildDisplayFilter(params.Filters, schema)
 	}
 
 	orderClause := ""
 	if params.SortColumn != "" && params.SortOrder != "" {
-		safeSortCol := "`" + strings.ReplaceAll(params.SortColumn, "`", "``") + "`"
+		safeSortCol := schema.QuoteIdentifier(params.SortColumn)
 		orderClause = " ORDER BY " + safeSortCol + " " + string(params.SortOrder)
 	}
 
@@ -568,12 +571,12 @@ func buildDisplaySQL(params model.TableDataParams, args []any) string {
 }
 
 // buildDisplayFilter 递归渲染 FilterGroup 为可读 SQL（值内联）。
-func buildDisplayFilter(group *model.FilterGroup) string {
+func (s *QueryService) buildDisplayFilter(group *model.FilterGroup, schema repository.SchemaIntrospector) string {
 	if group == nil {
 		return ""
 	}
 	if group.IsLeaf() {
-		safeCol := "`" + strings.ReplaceAll(group.Column, "`", "``") + "`"
+		safeCol := schema.QuoteIdentifier(group.Column)
 		switch group.Operator {
 		case model.OpEQ:
 			return fmt.Sprintf("%s = %s", safeCol, displayValue(group.Value))
@@ -595,7 +598,7 @@ func buildDisplayFilter(group *model.FilterGroup) string {
 	connector := " " + string(group.Logic) + " "
 	var parts []string
 	for _, sub := range group.Conditions {
-		subSQL := buildDisplayFilter(sub)
+		subSQL := s.buildDisplayFilter(sub, schema)
 		if subSQL == "" {
 			continue
 		}
@@ -673,16 +676,17 @@ func (s *QueryService) UpdateRow(params model.UpdateRowParams) (*model.UpdateRow
 		}
 	}
 
-	// 构建参数化 UPDATE: UPDATE `table` SET `col` = ? WHERE `pk1` = ? AND `pk2` = ?
-	safeTable := "`" + strings.ReplaceAll(params.Table, "`", "``") + "`"
-	safeCol := "`" + strings.ReplaceAll(params.Column, "`", "``") + "`"
+	// 构建参数化 UPDATE: UPDATE "table" SET "col" = ? WHERE "pk1" = ? AND "pk2" = ?
+	schema := s.connManager.Schema()
+	safeTable := schema.QuoteIdentifier(params.Table)
+	safeCol := schema.QuoteIdentifier(params.Column)
 
 	var whereParts []string
 	var args []any
 	args = append(args, params.NewValue) // SET 值放第一个
 
 	for pkCol, pkVal := range params.PkValues {
-		safePkCol := "`" + strings.ReplaceAll(pkCol, "`", "``") + "`"
+		safePkCol := schema.QuoteIdentifier(pkCol)
 		whereParts = append(whereParts, safePkCol+" = ?")
 		args = append(args, pkVal)
 	}
@@ -691,7 +695,7 @@ func (s *QueryService) UpdateRow(params model.UpdateRowParams) (*model.UpdateRow
 		safeTable, safeCol, strings.Join(whereParts, " AND "))
 
 	// 构建可读的 SQL 审计字符串（参数替换到 SQL 中）
-	auditSQL := buildAuditSQL(params.Table, params.Column, params.NewValue, params.PkValues)
+	auditSQL := s.buildAuditSQL(params.Table, params.Column, params.NewValue, params.PkValues, schema)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -714,7 +718,7 @@ func (s *QueryService) UpdateRow(params model.UpdateRowParams) (*model.UpdateRow
 
 // buildAuditSQL 构建带值的审计 SQL 字符串，用于前端 DML 审计展示。
 // 注意：此 SQL 仅用于展示/审计，不可执行（值未经重新转义）。
-func buildAuditSQL(table, col string, newValue any, pkValues map[string]any) string {
+func (s *QueryService) buildAuditSQL(table, col string, newValue any, pkValues map[string]any, schema repository.SchemaIntrospector) string {
 	var setVal string
 	switch v := newValue.(type) {
 	case nil:
@@ -748,10 +752,10 @@ func buildAuditSQL(table, col string, newValue any, pkValues map[string]any) str
 		default:
 			valStr = fmt.Sprintf("%v", v)
 		}
-		whereParts = append(whereParts, fmt.Sprintf("`%s` = %s", pkCol, valStr))
+		whereParts = append(whereParts, fmt.Sprintf("%s = %s", schema.QuoteIdentifier(pkCol), valStr))
 	}
 
-	return fmt.Sprintf("UPDATE %s SET %s = %s WHERE %s;", table, col, setVal, strings.Join(whereParts, " AND "))
+	return fmt.Sprintf("UPDATE %s SET %s = %s WHERE %s;", schema.QuoteIdentifier(table), schema.QuoteIdentifier(col), setVal, strings.Join(whereParts, " AND "))
 }
 
 // GetDBSchemaForCompletion 返回指定数据库的所有表和视图及其列信息，用于前端的 SQL 自动补全。

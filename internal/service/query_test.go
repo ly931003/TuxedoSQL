@@ -16,7 +16,7 @@ func newTestQueryService(t *testing.T) *QueryService {
 	connRepo := repository.NewConnectionRepository(store)
 	tabRepo := repository.NewTabRepository(store)
 	historyRepo := repository.NewHistoryRepository(store)
-	connManager := repository.NewConnectionManager(connRepo, &repository.MySQLDriver{})
+	connManager := repository.NewConnectionManager(connRepo, &repository.MySQLDriver{}, &repository.MySQLSchema{})
 	return NewQueryService(connManager, connRepo, tabRepo, historyRepo)
 }
 
@@ -199,6 +199,8 @@ func TestQueryService_IsQueryDetection(t *testing.T) {
 }
 
 func TestBuildFilterClause_GroupValidation(t *testing.T) {
+	svc := newTestQueryService(t)
+	schema := svc.connManager.Schema()
 	whitelist := map[string]bool{
 		"name":   true,
 		"status": true,
@@ -206,32 +208,32 @@ func TestBuildFilterClause_GroupValidation(t *testing.T) {
 	}
 
 	t.Run("无效组合逻辑应报错", func(t *testing.T) {
-		_, _, err := buildFilterClause(&model.FilterGroup{
+		_, _, err := svc.buildFilterClause(&model.FilterGroup{
 			Logic: "XOR",
 			Conditions: []*model.FilterGroup{
 				{Column: "name", Operator: model.OpEQ, Value: "alice"},
 				{Column: "status", Operator: model.OpEQ, Value: "active"},
 			},
-		}, whitelist)
+		}, whitelist, schema)
 		if err == nil {
 			t.Fatal("期望返回错误，但没有")
 		}
 	})
 
 	t.Run("子条件不足两个应报错", func(t *testing.T) {
-		_, _, err := buildFilterClause(&model.FilterGroup{
+		_, _, err := svc.buildFilterClause(&model.FilterGroup{
 			Logic: model.LogicAND,
 			Conditions: []*model.FilterGroup{
 				{Column: "name", Operator: model.OpEQ, Value: "alice"},
 			},
-		}, whitelist)
+		}, whitelist, schema)
 		if err == nil {
 			t.Fatal("期望返回错误，但没有")
 		}
 	})
 
 	t.Run("AND 下嵌套 OR 应添加括号", func(t *testing.T) {
-		sql, args, err := buildFilterClause(&model.FilterGroup{
+		sql, args, err := svc.buildFilterClause(&model.FilterGroup{
 			Logic: model.LogicAND,
 			Conditions: []*model.FilterGroup{
 				{Column: "status", Operator: model.OpEQ, Value: "active"},
@@ -243,7 +245,7 @@ func TestBuildFilterClause_GroupValidation(t *testing.T) {
 					},
 				},
 			},
-		}, whitelist)
+		}, whitelist, schema)
 		if err != nil {
 			t.Fatalf("不期望错误，但返回了: %v", err)
 		}

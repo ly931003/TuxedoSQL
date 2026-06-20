@@ -18,16 +18,24 @@ type ConnectionManager struct {
 	pools    map[string]*sql.DB // key: connectionID:database
 	connRepo ConnectionStore
 	driver   DatabaseDriver
+	schema   SchemaIntrospector
 }
 
 // NewConnectionManager 创建一个新的 ConnectionManager。
 // driver 指定数据库驱动（如 MySQLDriver、PostgresDriver），决定 DSN 格式和连接行为。
-func NewConnectionManager(connRepo ConnectionStore, driver DatabaseDriver) *ConnectionManager {
+// schema 指定数据库模式内省器（如 MySQLSchema、PostgresSchema），提供 SQL 查询和标识符引用。
+func NewConnectionManager(connRepo ConnectionStore, driver DatabaseDriver, schema SchemaIntrospector) *ConnectionManager {
 	return &ConnectionManager{
 		pools:    make(map[string]*sql.DB),
 		connRepo: connRepo,
 		driver:   driver,
+		schema:   schema,
 	}
+}
+
+// Schema 返回当前连接管理器的 SchemaIntrospector，供 service 层构建跨数据库 SQL。
+func (m *ConnectionManager) Schema() SchemaIntrospector {
+	return m.schema
 }
 
 // GetDB 返回指定连接和数据库对应的池化 *sql.DB。

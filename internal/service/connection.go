@@ -205,7 +205,8 @@ func (s *ConnectionService) GetDatabases(connectionID string) ([]string, error) 
 		return nil, err
 	}
 
-	rows, err := db.Query("SHOW DATABASES")
+	schema := s.connManager.Schema()
+	rows, err := db.Query(schema.ListDatabasesQuery())
 	if err != nil {
 		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
 	}
@@ -233,18 +234,14 @@ func (s *ConnectionService) GetTables(connectionID, databaseName string) ([]stri
 		return nil, err
 	}
 
-	db, err := s.connManager.GetDB(conn, "")
+	// 直接连接到目标数据库，避免 USE 切换（MySQL）或跨库查询（PostgreSQL）
+	db, err := s.connManager.GetDB(conn, databaseName)
 	if err != nil {
 		return nil, err
 	}
 
-	// 切换到目标数据库
-	safeDB := strings.ReplaceAll(databaseName, "`", "``")
-	if _, err := db.Exec("USE `" + safeDB + "`"); err != nil {
-		return nil, fmt.Errorf("切换数据库失败: %w", err)
-	}
-
-	rows, err := db.Query("SHOW TABLES")
+	schema := s.connManager.Schema()
+	rows, err := db.Query(schema.ListTablesQuery())
 	if err != nil {
 		return nil, fmt.Errorf("查询表列表失败: %w", err)
 	}
@@ -443,7 +440,8 @@ func (s *ConnectionService) CreateDatabase(params model.CreateDatabaseParams) (*
 		return nil, err
 	}
 
-	safeName := "`" + strings.ReplaceAll(params.DatabaseName, "`", "``") + "`"
+	schema := s.connManager.Schema()
+	safeName := schema.QuoteIdentifier(params.DatabaseName)
 	createSQL := "CREATE DATABASE " + safeName
 	if params.Charset != "" {
 		createSQL += " CHARACTER SET " + strings.ReplaceAll(params.Charset, "'", "")
@@ -474,12 +472,10 @@ func (s *ConnectionService) DropDatabase(connectionID, databaseName string) (*mo
 		return nil, fmt.Errorf("数据库名不能为空")
 	}
 
-	// 安全检查：禁止删除系统数据库
-	upper := strings.ToUpper(databaseName)
-	systemDBs := map[string]bool{
-		"INFORMATION_SCHEMA": true, "MYSQL": true, "PERFORMANCE_SCHEMA": true, "SYS": true,
-	}
-	if systemDBs[upper] {
+	// 安全检查：禁止删除系统数据库（通过 SchemaIntrospector 获取系统库列表）
+	schema := s.connManager.Schema()
+	systemDBs := schema.SystemDatabases()
+	if systemDBs[strings.ToUpper(databaseName)] {
 		return nil, fmt.Errorf("禁止删除系统数据库: %s", databaseName)
 	}
 
@@ -493,7 +489,7 @@ func (s *ConnectionService) DropDatabase(connectionID, databaseName string) (*mo
 		return nil, err
 	}
 
-	safeName := "`" + strings.ReplaceAll(databaseName, "`", "``") + "`"
+	safeName := schema.QuoteIdentifier(databaseName)
 	dropSQL := "DROP DATABASE " + safeName
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -537,12 +533,13 @@ func (s *ConnectionService) CreateTable(params model.CreateTableParams) (*model.
 		return nil, err
 	}
 
-	safeTable := "`" + strings.ReplaceAll(params.TableName, "`", "``") + "`"
+	schema := s.connManager.Schema()
+	safeTable := schema.QuoteIdentifier(params.TableName)
 
 	var colDefs []string
 	var pkCols []string
 	for _, col := range params.Columns {
-		safeCol := "`" + strings.ReplaceAll(col.Name, "`", "``") + "`"
+		safeCol := schema.QuoteIdentifier(col.Name)
 		def := safeCol + " " + col.DataType
 		if col.Unsigned {
 			def += " UNSIGNED"
@@ -617,7 +614,8 @@ func (s *ConnectionService) DropTable(connectionID, databaseName, tableName stri
 		return nil, err
 	}
 
-	safeTable := "`" + strings.ReplaceAll(tableName, "`", "``") + "`"
+	schema := s.connManager.Schema()
+	safeTable := schema.QuoteIdentifier(tableName)
 	dropSQL := "DROP TABLE " + safeTable
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
