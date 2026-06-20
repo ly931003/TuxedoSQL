@@ -34,25 +34,25 @@ func TestSQLiteDriverBuildDSN(t *testing.T) {
 			name:     "file path from Host",
 			conn:     &model.Connection{ID: "c1", Host: "/path/to/db.sqlite"},
 			database: "main",
-			want:     "/path/to/db.sqlite?_journal_mode=WAL&_busy_timeout=5000",
+			want:     "/path/to/db.sqlite?_journal_mode=WAL&_busy_timeout=5000&_cache=shared",
 		},
 		{
 			name:     "empty Host defaults to :memory:",
 			conn:     &model.Connection{ID: "c2", Host: ""},
 			database: "main",
-			want:     ":memory:?_journal_mode=WAL&_busy_timeout=5000",
+			want:     ":memory:?_journal_mode=WAL&_busy_timeout=5000&_cache=shared",
 		},
 		{
 			name:     "relative path",
 			conn:     &model.Connection{ID: "c3", Host: "./data/mydb.db"},
 			database: "main",
-			want:     "./data/mydb.db?_journal_mode=WAL&_busy_timeout=5000",
+			want:     "./data/mydb.db?_journal_mode=WAL&_busy_timeout=5000&_cache=shared",
 		},
 		{
 			name:     "database parameter is ignored",
 			conn:     &model.Connection{ID: "c4", Host: "test.db"},
 			database: "anything",
-			want:     "test.db?_journal_mode=WAL&_busy_timeout=5000",
+			want:     "test.db?_journal_mode=WAL&_busy_timeout=5000&_cache=shared",
 		},
 	}
 

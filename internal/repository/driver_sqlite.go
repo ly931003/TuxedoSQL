@@ -30,7 +30,7 @@ func (d *SQLiteDriver) BuildDSN(conn *model.Connection, database string) string 
 	}
 	// WAL mode for better concurrent read performance.
 	// busy_timeout to wait instead of failing immediately on locked database.
-	return fmt.Sprintf("%s?_journal_mode=WAL&_busy_timeout=5000", filePath)
+	return fmt.Sprintf("%s?_journal_mode=WAL&_busy_timeout=5000&_cache=shared", filePath)
 }
 
 // DefaultDatabase returns the SQLite default database name.

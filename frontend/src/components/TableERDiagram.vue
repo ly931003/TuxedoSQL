@@ -384,10 +384,12 @@ function edgeColor(index: number): string {
 .erd-svg-wrapper {
   overflow: auto;
   max-height: 100%;
+  width: 100%;
 }
 
 .erd-svg {
   display: block;
+  min-width: 100%;
 }
 
 /* Table box */

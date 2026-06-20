@@ -137,9 +137,8 @@ func (m *ConnectionManager) GetDBByID(connectionID, database string) (*model.Con
 // pool key 格式为 "connectionID:database"，因此需要前缀匹配而非精确查找。
 // 同时关闭该连接的 SSH 隧道（如果存在）。
 func (m *ConnectionManager) Close(connectionID string) {
+	// 关闭该连接的所有连接池（db.Close 等待进行中的查询完成）
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	prefix := connectionID + ":"
 	for key, db := range m.pools {
 		if len(key) >= len(prefix) && key[:len(prefix)] == prefix {
@@ -147,41 +146,33 @@ func (m *ConnectionManager) Close(connectionID string) {
 			delete(m.pools, key)
 		}
 	}
+	m.mu.Unlock()
 
-	if tunnel, ok := m.sshTunnels[connectionID]; ok {
-		if tunnel.cancel != nil {
-			tunnel.cancel()
-		}
-		if tunnel.listener != nil {
-			_ = tunnel.listener.Close()
-		}
-		if tunnel.client != nil {
-			_ = tunnel.client.Close()
-		}
-		delete(m.sshTunnels, connectionID)
-	}
+	// 等待 TCP 连接排空，避免在隧道上还有活跃数据库连接时关闭隧道
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer drainCancel()
+	<-drainCtx.Done()
+
+	// 关闭 SSH 隧道（closeSSHTunnel 自行管理锁）
+	m.closeSSHTunnel(connectionID)
 }
 
 // CloseAll 关闭所有连接池和 SSH 隧道。通常在应用退出时调用。
+// 先关闭连接池等待进行中的查询完成，排空后关闭隧道。
 func (m *ConnectionManager) CloseAll() {
+	// 关闭所有连接池（db.Close 等待进行中的查询完成）
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	for id, db := range m.pools {
 		_ = db.Close()
 		delete(m.pools, id)
 	}
+	m.mu.Unlock()
 
-	for id, tunnel := range m.sshTunnels {
-		if tunnel.cancel != nil {
-			tunnel.cancel()
-		}
-		if tunnel.listener != nil {
-			_ = tunnel.listener.Close()
-		}
-		if tunnel.client != nil {
-			_ = tunnel.client.Close()
-		}
-		delete(m.sshTunnels, id)
-	}
+	// 等待 TCP 连接排空，避免在隧道上还有活跃数据库连接时关闭隧道
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer drainCancel()
+	<-drainCtx.Done()
+
+	// 关闭所有 SSH 隧道（closeAllSSHTunnel 自行管理锁）
+	m.closeAllSSHTunnel()
 }

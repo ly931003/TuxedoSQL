@@ -855,7 +855,9 @@ func (s *QueryService) GetDBSchemaForCompletion(connectionID, database string) (
 	return schema, nil
 }
 
-// GetForeignKeys 返回指定表的外键关系（包括出向和入向）。
+// GetForeignKeys 返回指定表或整个数据库的外键关系。
+// 当 table 为非空时，返回该表的出向和入向外键关系。
+// 当 table 为空时，一次查询返回数据库中所有表的外键关系，避免 N+1 问题。
 // 外键信息来自 INFORMATION_SCHEMA.KEY_COLUMN_USAGE，用于前端 ER 图渲染。
 func (s *QueryService) GetForeignKeys(connectionID, database, table string) ([]model.ForeignKey, error) {
 	if connectionID == "" {
@@ -863,9 +865,6 @@ func (s *QueryService) GetForeignKeys(connectionID, database, table string) ([]m
 	}
 	if database == "" {
 		return nil, fmt.Errorf("数据库名不能为空")
-	}
-	if table == "" {
-		return nil, fmt.Errorf("表名不能为空")
 	}
 
 	_, db, err := s.connManager.GetDBByID(connectionID, database)
@@ -878,55 +877,80 @@ func (s *QueryService) GetForeignKeys(connectionID, database, table string) ([]m
 
 	var fks []model.ForeignKey
 
-	// 1. 出向外键：当前表引用其他表
-	outQuery := `SELECT COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, CONSTRAINT_NAME
-		FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-		WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL
-		ORDER BY ORDINAL_POSITION`
+	if table == "" {
+		// 一次查询返回数据库中所有外键关系，避免 N+1 问题
+		allQuery := `SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, CONSTRAINT_NAME
+			FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+			WHERE TABLE_SCHEMA = ? AND REFERENCED_TABLE_NAME IS NOT NULL
+			ORDER BY TABLE_NAME, ORDINAL_POSITION`
 
-	outRows, err := db.QueryContext(ctx, outQuery, database, table)
-	if err != nil {
-		return nil, fmt.Errorf("查询出向外键失败: %w", err)
-	}
-	for outRows.Next() {
-		var fk model.ForeignKey
-		fk.SourceTable = table
-		if err := outRows.Scan(&fk.SourceColumn, &fk.TargetTable, &fk.TargetColumn, &fk.ConstraintName); err != nil {
+		rows, err := db.QueryContext(ctx, allQuery, database)
+		if err != nil {
+			return nil, fmt.Errorf("查询外键关系失败: %w", err)
+		}
+		defer func() { _ = rows.Close() }()
+
+		for rows.Next() {
+			var fk model.ForeignKey
+			if err := rows.Scan(&fk.SourceTable, &fk.SourceColumn, &fk.TargetTable, &fk.TargetColumn, &fk.ConstraintName); err != nil {
+				return nil, fmt.Errorf("读取外键关系失败: %w", err)
+			}
+			fks = append(fks, fk)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("遍历外键关系失败: %w", err)
+		}
+	} else {
+		// 1. 出向外键：当前表引用其他表
+		outQuery := `SELECT COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, CONSTRAINT_NAME
+			FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+			WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL
+			ORDER BY ORDINAL_POSITION`
+
+		outRows, err := db.QueryContext(ctx, outQuery, database, table)
+		if err != nil {
+			return nil, fmt.Errorf("查询出向外键失败: %w", err)
+		}
+		for outRows.Next() {
+			var fk model.ForeignKey
+			fk.SourceTable = table
+			if err := outRows.Scan(&fk.SourceColumn, &fk.TargetTable, &fk.TargetColumn, &fk.ConstraintName); err != nil {
+				_ = outRows.Close()
+				return nil, fmt.Errorf("读取出向外键失败: %w", err)
+			}
+			fks = append(fks, fk)
+		}
+		if err := outRows.Err(); err != nil {
 			_ = outRows.Close()
-			return nil, fmt.Errorf("读取出向外键失败: %w", err)
+			return nil, fmt.Errorf("遍历出向外键失败: %w", err)
 		}
-		fks = append(fks, fk)
-	}
-	if err := outRows.Err(); err != nil {
 		_ = outRows.Close()
-		return nil, fmt.Errorf("遍历出向外键失败: %w", err)
-	}
-	_ = outRows.Close()
 
-	// 2. 入向外键：其他表引用当前表
-	inQuery := `SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_COLUMN_NAME, CONSTRAINT_NAME
-		FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-		WHERE TABLE_SCHEMA = ? AND REFERENCED_TABLE_NAME = ? AND TABLE_NAME != ?
-		ORDER BY TABLE_NAME, ORDINAL_POSITION`
+		// 2. 入向外键：其他表引用当前表
+		inQuery := `SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_COLUMN_NAME, CONSTRAINT_NAME
+			FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+			WHERE TABLE_SCHEMA = ? AND REFERENCED_TABLE_NAME = ? AND TABLE_NAME != ?
+			ORDER BY TABLE_NAME, ORDINAL_POSITION`
 
-	inRows, err := db.QueryContext(ctx, inQuery, database, table, table)
-	if err != nil {
-		return nil, fmt.Errorf("查询入向外键失败: %w", err)
-	}
-	for inRows.Next() {
-		var fk model.ForeignKey
-		fk.TargetTable = table
-		if err := inRows.Scan(&fk.SourceTable, &fk.SourceColumn, &fk.TargetColumn, &fk.ConstraintName); err != nil {
-			_ = inRows.Close()
-			return nil, fmt.Errorf("读取入向外键失败: %w", err)
+		inRows, err := db.QueryContext(ctx, inQuery, database, table, table)
+		if err != nil {
+			return nil, fmt.Errorf("查询入向外键失败: %w", err)
 		}
-		fks = append(fks, fk)
-	}
-	if err := inRows.Err(); err != nil {
+		for inRows.Next() {
+			var fk model.ForeignKey
+			fk.TargetTable = table
+			if err := inRows.Scan(&fk.SourceTable, &fk.SourceColumn, &fk.TargetColumn, &fk.ConstraintName); err != nil {
+				_ = inRows.Close()
+				return nil, fmt.Errorf("读取入向外键失败: %w", err)
+			}
+			fks = append(fks, fk)
+		}
+		if err := inRows.Err(); err != nil {
+			_ = inRows.Close()
+			return nil, fmt.Errorf("遍历入向外键失败: %w", err)
+		}
 		_ = inRows.Close()
-		return nil, fmt.Errorf("遍历入向外键失败: %w", err)
 	}
-	_ = inRows.Close()
 
 	if fks == nil {
 		return []model.ForeignKey{}, nil

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 
 	"tuxedosql/internal/model"
 	"tuxedosql/internal/repository"
