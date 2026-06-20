@@ -47,7 +47,7 @@ The name comes from the author's two adorable tuxedo cats — black-and-white fe
 | **Data Browser** | Sortable columns, column-level filters, paginated results |
 | **Record Editor** | Click to edit any cell, inline validation, type-aware form controls |
 | **Schema Explorer** | Tree-view table list, DDL dump, column/index metadata at a glance |
-| **Export** | Dump results to CSV/JSON with a single click |
+| **Export** | Dump results to CSV/SQL INSERT/JSON with a single click |
 | **Security** | OS keyring (macOS Keychain / Windows Credential Manager / Linux Secret Service) with AES-256 machine-ID fallback |
 | **Layout** | Collapsible sidebar, draggable split panes — make the screen yours |
 | **Server Mode** | Headless HTTP server mode for remote or containerized deployments |
@@ -171,13 +171,13 @@ Adding a new frontend-callable API is three steps:
 - [x] Table data browser with sorting, filtering, pagination
 - [x] Inline record editor
 - [x] Schema explorer + DDL viewer
-- [x] Data export (CSV/JSON)
+- [x] Data export (CSV/SQL INSERT/JSON)
 - [x] Server mode + Docker deployment
 - [ ] PostgreSQL support
 - [ ] SQLite support
 - [ ] SSH tunnel connections
 - [ ] Query history & favorites
-- [ ] Dark mode
+- [x] Dark mode
 - [ ] ER diagram visualizer
 
 ## 🤝 Contributing
