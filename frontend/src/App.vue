@@ -32,7 +32,6 @@ function toggleTheme() {
   const theme = isDark.value ? 'dark' : 'light'
   document.documentElement.setAttribute('data-theme', theme)
   localStorage.setItem('tuxedosql-theme', theme)
-  document.body.setAttribute('data-theme', theme)
 }
 
 function handleLeftSidebarResize(width: number) {

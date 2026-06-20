@@ -14,9 +14,9 @@ function getPreferredTheme(): 'light' | 'dark' {
 }
 function applyTheme(theme: 'light' | 'dark') {
   document.documentElement.setAttribute('data-theme', theme)
+  document.documentElement.style.colorScheme = theme
   localStorage.setItem(THEME_KEY, theme)
 }
-applyTheme(getPreferredTheme())
 
 const app = createApp(App)
 app.use(createPinia())

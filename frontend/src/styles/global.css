@@ -24,14 +24,6 @@ body {
   background: var(--color-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-  font-family: var(--font-sans);
-  font-size: 14px;
-  color: var(--color-text);
-  background: var(--color-bg);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 ::-webkit-scrollbar {
