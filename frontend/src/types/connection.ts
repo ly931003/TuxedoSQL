@@ -1,3 +1,13 @@
+export interface SSHConfig {
+  enabled: boolean
+  host: string
+  port: number
+  user: string
+  password: string
+  privateKeyPath: string
+  privateKeyPass: string
+}
+
 export interface Connection {
   id: string
   name: string
@@ -8,6 +18,7 @@ export interface Connection {
   password: string
   database: string
   timezone: string
+  ssh: SSHConfig
   createdAt: string
   updatedAt: string
 }
@@ -27,6 +38,7 @@ export interface CreateConnectionParams {
   password: string
   database: string
   timezone: string
+  ssh: SSHConfig
 }
 
 export interface UpdateConnectionParams {
@@ -39,6 +51,7 @@ export interface UpdateConnectionParams {
   password: string
   database: string
   timezone: string
+  ssh: SSHConfig
 }
 
 export interface TestResult {

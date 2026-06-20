@@ -19,6 +19,13 @@ interface FormData {
   password: string
   database: string
   timezone: string
+  sshEnabled: boolean
+  sshHost: string
+  sshPort: number
+  sshUser: string
+  sshPassword: string
+  sshPrivateKeyPath: string
+  sshPrivateKeyPass: string
 }
 
 const form = reactive<FormData>({
@@ -30,12 +37,19 @@ const form = reactive<FormData>({
   password: '',
   database: '',
   timezone: 'Local',
+  sshEnabled: false,
+  sshHost: '',
+  sshPort: 22,
+  sshUser: '',
+  sshPassword: '',
+  sshPrivateKeyPath: '',
+  sshPrivateKeyPass: '',
 })
 
 const testResult = reactive<TestResult>({ success: false, message: '' })
 const isTesting = ref(false)
 const isSaving = ref(false)
-
+const showSSH = ref(false)
 const visible = computed({
   get: () => store.dialogVisible,
   set: (v) => {
@@ -47,8 +61,15 @@ watch(
   () => store.editingConnection,
   (conn) => {
     if (conn) {
+      const connAny = conn as Record<string, unknown>
+      const formAny = form as Record<string, unknown>
       ;(Object.keys(form) as (keyof FormData)[]).forEach((k) => {
-        ;(form as Record<string, unknown>)[k] = (conn as Record<string, unknown>)[k]
+        if (k.startsWith('ssh')) {
+          const sshKey = k.slice(3).replace(/^[A-Z]/, (c) => c.toLowerCase())
+          formAny[k] = (conn.ssh as Record<string, unknown>)?.[sshKey] ?? formAny[k]
+        } else {
+          formAny[k] = connAny[k]
+        }
       })
     } else {
       form.name = ''
@@ -59,6 +80,13 @@ watch(
       form.password = ''
       form.database = ''
       form.timezone = 'Local'
+      form.sshEnabled = false
+      form.sshHost = ''
+      form.sshPort = 22
+      form.sshUser = ''
+      form.sshPassword = ''
+      form.sshPrivateKeyPath = ''
+      form.sshPrivateKeyPass = ''
     }
     testResult.success = false
     testResult.message = ''
@@ -83,8 +111,17 @@ async function handleSave() {
     }
   }
 
-  isSaving.value = true
-  try {
+    isSaving.value = true
+    const ssh = {
+      enabled: form.sshEnabled,
+      host: form.sshHost,
+      port: form.sshPort,
+      user: form.sshUser,
+      password: form.sshPassword,
+      privateKeyPath: form.sshPrivateKeyPath,
+      privateKeyPass: form.sshPrivateKeyPass,
+    }
+    try {
     if (store.editingConnection) {
       const conn = await ConnectionService.Update({
         id: store.editingConnection.id,
@@ -96,6 +133,7 @@ async function handleSave() {
         password: form.password,
         database: form.database,
         timezone: form.timezone,
+        ssh,
       })
       if (conn) store.updateConnection(conn)
     } else {
@@ -108,6 +146,7 @@ async function handleSave() {
         password: form.password,
         database: form.database,
         timezone: form.timezone,
+        ssh,
       })
       if (conn) store.addConnection(conn)
     }
@@ -125,6 +164,15 @@ async function handleTest() {
   testResult.success = false
   testResult.message = ''
   try {
+    const ssh = {
+      enabled: form.sshEnabled,
+      host: form.sshHost,
+      port: form.sshPort,
+      user: form.sshUser,
+      password: form.sshPassword,
+      privateKeyPath: form.sshPrivateKeyPath,
+      privateKeyPass: form.sshPrivateKeyPass,
+    }
     let connId = store.editingConnection?.id
     if (!connId) {
       const temp = await ConnectionService.Create({
@@ -136,6 +184,7 @@ async function handleTest() {
         password: form.password,
         database: form.database,
         timezone: form.timezone,
+        ssh,
       })
       if (!temp) {
         testResult.message = '创建临时连接失败'
@@ -240,6 +289,40 @@ function handleClose() {
           </el-option-group>
         </el-select>
       </el-form-item>
+
+      <!-- SSH 隧道配置 -->
+      <el-divider />
+      <el-form-item>
+        <el-checkbox v-model="form.sshEnabled" @change="showSSH = form.sshEnabled">
+          通过 SSH 隧道连接
+        </el-checkbox>
+      </el-form-item>
+      <template v-if="form.sshEnabled || showSSH">
+        <el-form-item label="SSH 主机">
+          <el-input v-model="form.sshHost" placeholder="例如：192.168.1.1" />
+        </el-form-item>
+        <el-row :gutter="12">
+          <el-col :span="8">
+            <el-form-item label="SSH 端口">
+              <el-input-number v-model="form.sshPort" :min="1" :max="65535" class="full-width" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="16">
+            <el-form-item label="SSH 用户">
+              <el-input v-model="form.sshUser" placeholder="root" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="SSH 密码">
+          <el-input v-model="form.sshPassword" type="password" show-password placeholder="SSH 登录密码（可选）" />
+        </el-form-item>
+        <el-form-item label="私钥路径">
+          <el-input v-model="form.sshPrivateKeyPath" placeholder="~/.ssh/id_rsa（可选）" />
+        </el-form-item>
+        <el-form-item label="私钥口令">
+          <el-input v-model="form.sshPrivateKeyPass" type="password" show-password placeholder="加密私钥的口令（可选）" />
+        </el-form-item>
+      </template>
       <div
         v-if="testResult.message"
         class="test-result"

@@ -2,7 +2,8 @@ package model
 
 import "time"
 
-// Connection 表示一个 MySQL 数据库连接配置。
+// Connection 表示一个数据库连接配置。
+// SSHConfig 为非零值时自动通过 SSH 隧道连接远程数据库。
 type Connection struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
@@ -15,6 +16,8 @@ type Connection struct {
 	Timezone  string    `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+	// SSH 隧道配置（可选） — 零值 (Enabled=false) 表示直连数据库
+	SSH SSHConfig `json:"ssh"`
 }
 
 // ConnectionGroup 表示连接分组（文件夹式管理）。
@@ -42,7 +45,8 @@ type CreateConnectionParams struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Database string `json:"database"`
-	Timezone string `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
+	Timezone string    `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
+	SSH      SSHConfig `json:"ssh"`      // SSH 隧道配置（可选）
 }
 
 // UpdateConnectionParams 是更新连接时的请求参数。
@@ -55,7 +59,8 @@ type UpdateConnectionParams struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Database string `json:"database"`
-	Timezone string `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
+	Timezone string    `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
+	SSH      SSHConfig `json:"ssh"`      // SSH 隧道配置（可选）
 }
 
 // TestResult 是测试连接的结果。
@@ -119,4 +124,17 @@ type CharsetInfo struct {
 	Charset          string `json:"charset"`          // 字符集名
 	DefaultCollation string `json:"defaultCollation"` // 默认排序规则
 	Description      string `json:"description"`      // 描述
+}
+
+// SSHConfig 表示 SSH 隧道连接参数。
+// 当 Enabled=true 时，所有数据库连接通过 SSH 隧道转发。
+// 支持密码和私钥两种认证方式，私钥优先。
+type SSHConfig struct {
+	Enabled          bool   `json:"enabled"`          // 是否启用 SSH 隧道
+	Host             string `json:"host"`             // SSH 服务器地址
+	Port             int    `json:"port"`             // SSH 端口（默认 22）
+	User             string `json:"user"`             // SSH 登录用户名
+	Password         string `json:"password"`         // SSH 密码（与私钥二选一）
+	PrivateKeyPath   string `json:"privateKeyPath"`   // 私钥文件路径（如 ~/.ssh/id_rsa）
+	PrivateKeyPass   string `json:"privateKeyPass"`   // 私钥口令（加密私钥时需要）
 }

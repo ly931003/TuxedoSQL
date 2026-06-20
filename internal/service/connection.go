@@ -62,6 +62,7 @@ func (s *ConnectionService) Create(params model.CreateConnectionParams) (*model.
 		Password:  params.Password,
 		Database:  params.Database,
 		Timezone:  tz,
+		SSH:       params.SSH,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -97,6 +98,14 @@ func (s *ConnectionService) Update(params model.UpdateConnectionParams) (*model.
 	}
 
 	conn := &connections[idx]
+	conn.Name = params.Name
+	conn.GroupID = params.GroupID
+	conn.Host = params.Host
+	conn.Port = params.Port
+	conn.Username = params.Username
+	conn.Password = params.Password
+	conn.Database = params.Database
+	conn.SSH = params.SSH
 	conn.Name = params.Name
 	conn.GroupID = params.GroupID
 	conn.Host = params.Host

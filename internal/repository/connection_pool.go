@@ -13,12 +13,14 @@ import (
 // ConnectionManager 管理数据库连接池，按 connectionID:database 缓存 *sql.DB 实例。
 // 不同数据库使用独立的连接池，避免 USE database 交叉影响。
 // 通过 DatabaseDriver 接口支持多种数据库（MySQL、PostgreSQL 等）。
+// 支持 SSH 隧道连接 — SSH 配置不为零值时自动建立端口转发。
 type ConnectionManager struct {
-	mu       sync.RWMutex
-	pools    map[string]*sql.DB // key: connectionID:database
-	connRepo ConnectionStore
-	driver   DatabaseDriver
-	schema   SchemaIntrospector
+	mu         sync.RWMutex
+	pools      map[string]*sql.DB // key: connectionID:database
+	sshTunnels map[string]*sshTunnel // key: connectionID — SSH 隧道缓存
+	connRepo   ConnectionStore
+	driver     DatabaseDriver
+	schema     SchemaIntrospector
 }
 
 // NewConnectionManager 创建一个新的 ConnectionManager。
@@ -26,10 +28,11 @@ type ConnectionManager struct {
 // schema 指定数据库模式内省器（如 MySQLSchema、PostgresSchema），提供 SQL 查询和标识符引用。
 func NewConnectionManager(connRepo ConnectionStore, driver DatabaseDriver, schema SchemaIntrospector) *ConnectionManager {
 	return &ConnectionManager{
-		pools:    make(map[string]*sql.DB),
-		connRepo: connRepo,
-		driver:   driver,
-		schema:   schema,
+		pools:      make(map[string]*sql.DB),
+		sshTunnels: make(map[string]*sshTunnel),
+		connRepo:   connRepo,
+		driver:     driver,
+		schema:     schema,
 	}
 }
 
@@ -75,7 +78,21 @@ func (m *ConnectionManager) GetDB(conn *model.Connection, database string) (*sql
 	}
 
 	// 通过驱动构建 DSN（时区处理由各驱动内部负责）
-	dsn := m.driver.BuildDSN(conn, dbName)
+	// 若启用 SSH 隧道，使用本地转发地址替代远程地址
+	var dsn string
+	if conn.SSH.Enabled {
+		localPort, err := m.getOrCreateSSHTunnel(conn)
+		if err != nil {
+			return nil, fmt.Errorf("SSH 隧道建立失败: %w", err)
+		}
+		// 构造临时连接副本以使用本地转发地址
+		tunnelConn := *conn
+		tunnelConn.Host = "127.0.0.1"
+		tunnelConn.Port = localPort
+		dsn = m.driver.BuildDSN(&tunnelConn, dbName)
+	} else {
+		dsn = m.driver.BuildDSN(conn, dbName)
+	}
 
 	db, err := sql.Open(m.driver.DriverName(), dsn)
 	if err != nil {
@@ -118,6 +135,7 @@ func (m *ConnectionManager) GetDBByID(connectionID, database string) (*model.Con
 
 // Close 关闭并移除指定连接的所有连接池（匹配 connectionID: 前缀的所有 key）。
 // pool key 格式为 "connectionID:database"，因此需要前缀匹配而非精确查找。
+// 同时关闭该连接的 SSH 隧道（如果存在）。
 func (m *ConnectionManager) Close(connectionID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -129,9 +147,22 @@ func (m *ConnectionManager) Close(connectionID string) {
 			delete(m.pools, key)
 		}
 	}
+
+	if tunnel, ok := m.sshTunnels[connectionID]; ok {
+		if tunnel.cancel != nil {
+			tunnel.cancel()
+		}
+		if tunnel.listener != nil {
+			_ = tunnel.listener.Close()
+		}
+		if tunnel.client != nil {
+			_ = tunnel.client.Close()
+		}
+		delete(m.sshTunnels, connectionID)
+	}
 }
 
-// CloseAll 关闭所有连接池。通常在应用退出时调用。
+// CloseAll 关闭所有连接池和 SSH 隧道。通常在应用退出时调用。
 func (m *ConnectionManager) CloseAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -139,5 +170,18 @@ func (m *ConnectionManager) CloseAll() {
 	for id, db := range m.pools {
 		_ = db.Close()
 		delete(m.pools, id)
+	}
+
+	for id, tunnel := range m.sshTunnels {
+		if tunnel.cancel != nil {
+			tunnel.cancel()
+		}
+		if tunnel.listener != nil {
+			_ = tunnel.listener.Close()
+		}
+		if tunnel.client != nil {
+			_ = tunnel.client.Close()
+		}
+		delete(m.sshTunnels, id)
 	}
 }
