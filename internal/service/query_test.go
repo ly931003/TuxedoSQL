@@ -16,7 +16,7 @@ func newTestQueryService(t *testing.T) *QueryService {
 	connRepo := repository.NewConnectionRepository(store)
 	tabRepo := repository.NewTabRepository(store)
 	historyRepo := repository.NewHistoryRepository(store)
-	connManager := repository.NewConnectionManager(connRepo)
+	connManager := repository.NewConnectionManager(connRepo, &repository.MySQLDriver{})
 	return NewQueryService(connManager, connRepo, tabRepo, historyRepo)
 }
 

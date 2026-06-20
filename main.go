@@ -23,7 +23,7 @@ func main() {
 	connRepo := repository.NewConnectionRepository(store)
 	tabRepo := repository.NewTabRepository(store)
 	historyRepo := repository.NewHistoryRepository(store)
-	connManager := repository.NewConnectionManager(connRepo)
+	connManager := repository.NewConnectionManager(connRepo, &repository.MySQLDriver{})
 	defer connManager.CloseAll()
 
 	app := application.New(application.Options{

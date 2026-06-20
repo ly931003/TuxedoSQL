@@ -4,29 +4,29 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
-	"strings"
 	"sync"
 	"time"
-
-	_ "github.com/go-sql-driver/mysql"
 
 	"tuxedosql/internal/model"
 )
 
-// ConnectionManager 管理 MySQL 连接池，按 connectionID:database 缓存 *sql.DB 实例。
+// ConnectionManager 管理数据库连接池，按 connectionID:database 缓存 *sql.DB 实例。
 // 不同数据库使用独立的连接池，避免 USE database 交叉影响。
+// 通过 DatabaseDriver 接口支持多种数据库（MySQL、PostgreSQL 等）。
 type ConnectionManager struct {
 	mu       sync.RWMutex
 	pools    map[string]*sql.DB // key: connectionID:database
 	connRepo ConnectionStore
+	driver   DatabaseDriver
 }
 
 // NewConnectionManager 创建一个新的 ConnectionManager。
-func NewConnectionManager(connRepo ConnectionStore) *ConnectionManager {
+// driver 指定数据库驱动（如 MySQLDriver、PostgresDriver），决定 DSN 格式和连接行为。
+func NewConnectionManager(connRepo ConnectionStore, driver DatabaseDriver) *ConnectionManager {
 	return &ConnectionManager{
 		pools:    make(map[string]*sql.DB),
 		connRepo: connRepo,
+		driver:   driver,
 	}
 }
 
@@ -63,30 +63,13 @@ func (m *ConnectionManager) GetDB(conn *model.Connection, database string) (*sql
 		dbName = conn.Database
 	}
 	if dbName == "" {
-		dbName = "mysql"
+		dbName = m.driver.DefaultDatabase()
 	}
 
-	// 时区处理：验证 IANA 名称并将 "/" URL 编码，避免 DSN 解析错误。
-	// 空值/Local 等价于 Go time.Local（用户本机时区）。
-	tz := conn.Timezone
-	if tz == "" {
-		tz = "Local"
-	}
-	if tz != "Local" {
-		loc, err := time.LoadLocation(tz)
-		if err != nil {
-			log.Printf("[connection_pool] 无效时区 %q，回退到 Local: %v", tz, err)
-			tz = "Local"
-		} else {
-			tz = loc.String() // 规范化 IANA 名称
-		}
-	}
-	encodedLoc := strings.ReplaceAll(tz, "/", "%2F")
+	// 通过驱动构建 DSN（时区处理由各驱动内部负责）
+	dsn := m.driver.BuildDSN(conn, dbName)
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?timeout=5s&parseTime=true&loc=%s",
-		conn.Username, conn.Password, conn.Host, conn.Port, dbName, encodedLoc)
-
-	db, err := sql.Open("mysql", dsn)
+	db, err := sql.Open(m.driver.DriverName(), dsn)
 	if err != nil {
 		return nil, fmt.Errorf("打开数据库连接失败: %w", err)
 	}

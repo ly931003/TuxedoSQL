@@ -20,7 +20,7 @@ func newTestPoolDB(t *testing.T) *sql.DB {
 }
 
 func TestConnectionManagerNewWithNilRepoInitializesPools(t *testing.T) {
-	m := NewConnectionManager(nil)
+	m := NewConnectionManager(nil, &MySQLDriver{})
 	if m == nil || m.pools == nil {
 		t.Fatal("expected manager and pools map to be initialized")
 	}
@@ -28,21 +28,21 @@ func TestConnectionManagerNewWithNilRepoInitializesPools(t *testing.T) {
 
 func TestConnectionManagerNewWithRepoInitializesPools(t *testing.T) {
 	repo := &ConnectionRepository{}
-	m := NewConnectionManager(repo)
+	m := NewConnectionManager(repo, &MySQLDriver{})
 	if m == nil || m.pools == nil || m.connRepo != repo {
 		t.Fatal("expected manager to keep repo and initialize pools map")
 	}
 }
 
 func TestConnectionManagerGetDBNilConnectionReturnsError(t *testing.T) {
-	m := NewConnectionManager(nil)
+	m := NewConnectionManager(nil, &MySQLDriver{})
 	if _, err := m.GetDB(nil, "dbA"); err == nil || err.Error() != "连接不能为空" {
 		t.Fatalf("expected nil connection error, got %v", err)
 	}
 }
 
 func TestConnectionManagerCloseEmptyPoolDoesNotPanic(t *testing.T) {
-	m := NewConnectionManager(nil)
+	m := NewConnectionManager(nil, &MySQLDriver{})
 	m.Close("missing")
 	if len(m.pools) != 0 {
 		t.Fatalf("expected empty pool map, got %d", len(m.pools))
@@ -50,7 +50,7 @@ func TestConnectionManagerCloseEmptyPoolDoesNotPanic(t *testing.T) {
 }
 
 func TestConnectionManagerCloseAllEmptyPoolDoesNotPanic(t *testing.T) {
-	m := NewConnectionManager(nil)
+	m := NewConnectionManager(nil, &MySQLDriver{})
 	m.CloseAll()
 	if len(m.pools) != 0 {
 		t.Fatalf("expected empty pool map, got %d", len(m.pools))
@@ -58,7 +58,7 @@ func TestConnectionManagerCloseAllEmptyPoolDoesNotPanic(t *testing.T) {
 }
 
 func TestConnectionManagerCloseRemovesMatchingPrefixOnly(t *testing.T) {
-	m := NewConnectionManager(nil)
+	m := NewConnectionManager(nil, &MySQLDriver{})
 	db1 := newTestPoolDB(t)
 	db2 := newTestPoolDB(t)
 	db3 := newTestPoolDB(t)
@@ -79,7 +79,7 @@ func TestConnectionManagerCloseRemovesMatchingPrefixOnly(t *testing.T) {
 }
 
 func TestConnectionManagerCloseAllRemovesAllPools(t *testing.T) {
-	m := NewConnectionManager(nil)
+	m := NewConnectionManager(nil, &MySQLDriver{})
 	m.pools["conn1:dbA"] = newTestPoolDB(t)
 	m.pools["conn1:dbB"] = newTestPoolDB(t)
 	m.pools["conn2:dbA"] = newTestPoolDB(t)
@@ -92,7 +92,7 @@ func TestConnectionManagerCloseAllRemovesAllPools(t *testing.T) {
 }
 
 func TestConnectionManagerGetDBUnreachableHostReturnsError(t *testing.T) {
-	m := NewConnectionManager(nil)
+	m := NewConnectionManager(nil, &MySQLDriver{})
 	conn := &model.Connection{ID: "conn1", Host: "127.0.0.1", Port: 1, Username: "user", Password: "pass"}
 
 	_, err := m.GetDB(conn, "dbA")
@@ -105,7 +105,7 @@ func TestConnectionManagerGetDBUnreachableHostReturnsError(t *testing.T) {
 }
 
 func TestConnectionManagerGetDBUsesConnectionDatabaseWhenNameEmpty(t *testing.T) {
-	m := NewConnectionManager(nil)
+	m := NewConnectionManager(nil, &MySQLDriver{})
 	conn := &model.Connection{ID: "conn1", Host: "127.0.0.1", Port: 1, Username: "user", Password: "pass", Database: "fallback_db"}
 
 	_, err := m.GetDB(conn, "")
