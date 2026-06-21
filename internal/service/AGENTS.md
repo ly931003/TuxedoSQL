@@ -10,8 +10,6 @@ internal/service/
 ├── connection_test.go   # Table-driven tests (12 functions)
 ├── query.go             # QueryService — SQL exec, pagination, filtering, row edit (819 lines)
 ├── query_test.go        # Table-driven tests (27 functions)
-├── greet.go             # GreetService — unused boilerplate (NOT registered in main.go)
-└── greet_test.go        # Example test
 ```
 
 ## WHERE TO LOOK

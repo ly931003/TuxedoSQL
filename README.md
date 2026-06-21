@@ -189,7 +189,7 @@ Adding a new frontend-callable API is three steps:
 
 ## 🤝 Contributing
 
-Pull requests are welcome! Check the [CLAUDE.md](CLAUDE.md) for architecture details, project conventions, and development commands.
+Pull requests are welcome! Check the [AGENTS.md](AGENTS.md) for architecture details, project conventions, and development commands.
 
 ## 📄 License
 

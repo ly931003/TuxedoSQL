@@ -189,7 +189,7 @@ TuxedoSQL 清晰分为三层：
 
 ## 🤝 参与贡献
 
-欢迎提交 Pull Request！查看 [CLAUDE.md](CLAUDE.md) 了解架构细节、项目规范和开发命令。
+欢迎提交 Pull Request！查看 [AGENTS.md](AGENTS.md) 了解架构细节、项目规范和开发命令。
 
 ## 📄 许可证
 

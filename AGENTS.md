@@ -123,7 +123,6 @@ wails3 generate bindings          # Regenerate TS bridge
 ```
 
 ## NOTES
-- `greet.go` in `internal/service/` is unused boilerplate — not registered in `main.go`
 - Theme logic split between `main.ts` (init) and `App.vue` (toggle) — both use `data-theme` attribute
 - Root `Taskfile.yml` delegates quality commands via `common:` prefix — `task check` won't work from root; use `task common:check` or add forwarding tasks
 - `build/docker/Dockerfile.cross` uses Go 1.26 but `go.mod` specifies 1.25 — cross-compile for platforms

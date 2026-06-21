@@ -229,6 +229,7 @@ async function handleNodeDragEnd(dragging: TreeNode, target: TreeNode, dropType:
         username: conn.username,
         password: conn.password,
         database: conn.database,
+        driver: conn.driver,
         timezone: conn.timezone,
         ssh: conn.ssh,
       })
