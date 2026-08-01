@@ -4,7 +4,7 @@
 **Branch:** master
 
 ## OVERVIEW
-TuxedoSQL is a Wails v3 desktop SQL client — Go 1.25 backend, Vue 3 + TypeScript + Element Plus frontend. Multi-driver support: **MySQL, PostgreSQL, SQLite** via driver registry pattern. SSH tunnel support for remote connections. ~270 files, ~25k LoC. Two registered services (ConnectionService, QueryService). Version 0.1.0.
+TuxedoSQL is a Wails v3 desktop SQL client — Go 1.25 module (local toolchain go1.26.5), Vue 3 + TypeScript + Element Plus frontend. Multi-driver support: **MySQL, PostgreSQL, SQLite** via driver registry pattern. SSH tunnel support for remote connections. ~270 files, ~25k LoC. Two registered services (ConnectionService, QueryService). Version 0.1.0.
 
 ## STRUCTURE
 ```
