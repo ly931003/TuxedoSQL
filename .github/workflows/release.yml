@@ -22,6 +22,12 @@ jobs:
         with:
           node-version: '20'
 
+      # go mod tidy 会遍历整个模块树（含 node_modules），必须让依赖先装完，
+      # 否则与 task 内部的 npm install 并发时会出现目录不存在的竞态
+      - name: Pre-install frontend deps
+        run: npm ci
+        working-directory: frontend
+
       - name: Install Linux GUI deps (webkitgtk-6.0 + gtk4, Ubuntu 24.04)
         run: |
           sudo apt-get update
@@ -67,6 +73,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      # go mod tidy 会遍历整个模块树（含 node_modules），必须让依赖先装完，
+      # 否则与 task 内部的 npm install 并发时会出现目录不存在的竞态
+      - name: Pre-install frontend deps
+        run: npm ci
+        working-directory: frontend
 
       - name: Install Linux GUI deps (needed to compile wails3 CLI)
         run: |
