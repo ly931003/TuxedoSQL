@@ -28,6 +28,12 @@ jobs:
         run: npm ci
         working-directory: frontend
 
+      # node_modules 内部分 npm 包自带 .go 文件（如 @tybys/wasm-util），
+      # go mod tidy 遍历模块树时会把 @ 开头的路径当版本标记而报错。
+      # 放一个 go.mod 桩文件使其成为模块边界，Go 的包遍历会跳过它。
+      - name: Mark node_modules as Go module boundary
+        run: printf 'module node_modules\n' > frontend/node_modules/go.mod
+
       - name: Install Linux GUI deps (webkitgtk-6.0 + gtk4, Ubuntu 24.04)
         run: |
           sudo apt-get update
@@ -79,6 +85,12 @@ jobs:
       - name: Pre-install frontend deps
         run: npm ci
         working-directory: frontend
+
+      # node_modules 内部分 npm 包自带 .go 文件（如 @tybys/wasm-util），
+      # go mod tidy 遍历模块树时会把 @ 开头的路径当版本标记而报错。
+      # 放一个 go.mod 桩文件使其成为模块边界，Go 的包遍历会跳过它。
+      - name: Mark node_modules as Go module boundary
+        run: printf 'module node_modules\n' > frontend/node_modules/go.mod
 
       - name: Install Linux GUI deps (needed to compile wails3 CLI)
         run: |
