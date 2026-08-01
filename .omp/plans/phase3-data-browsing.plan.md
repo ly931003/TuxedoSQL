@@ -1,8 +1,27 @@
 # Plan: 第三期 — 数据浏览（表格视图）+ 多项增强
 
-**Source PRD**: `.claude/prds/database-connection-management.prd.md`
+**Source PRD**: `.omp/prds/database-connection-management.prd.md`
 **Selected Milestone**: 3 — 数据浏览（表格视图）
 **Complexity**: Large
+
+## Status (2026-08-01 — 从 Claude Code 继承)
+
+| Task | Status | Evidence |
+|---|---|---|
+| 1 Go 数据模型 | ✅ done | `internal/model/query.go`: `TableSchema` / `SortOrder` / `FilterCondition` / `TableDataParams` / `PageResult` |
+| 2 GetTableSchema | ✅ done | `internal/service/query.go:222`（INFORMATION_SCHEMA + 列白名单） |
+| 3 GetTableData | ✅ done | `internal/service/query.go:321`（列名/操作符白名单 + `?` 参数化 + COUNT 总数） |
+| 4 单元测试 | ✅ done | `query_test.go`: `TestQueryService_GetTableSchema_Validation/NotFound`、`GetTableData_Validation/PageDefaults` 等 |
+| 5 类型 + store | ✅ done | `frontend/src/types/query.ts`、`frontend/src/stores/query.ts`（`openTableView`/`loadTableData`/分页排序筛选状态） |
+| 6 QueryResult 分页/排序/筛选 | ✅ done | `frontend/src/components/QueryResult.vue` |
+| 7 TableView | ✅ done | `frontend/src/components/TableView.vue` |
+| 8 DataExport | ✅ done | `frontend/src/components/DataExport.vue`（CSV 含 BOM + SQL INSERT） |
+| 9 SqlEditor (CodeMirror) | ✅ done | `frontend/src/components/SqlEditor.vue` + `QueryEditor.vue` 集成 |
+| 10 Sidebar 双击/右键行为 | ✅ done | `frontend/src/components/Sidebar.vue`（双击表 → 表格视图） |
+| 11 密码加密存储 | ✅ done | `pkg/crypto/`（AES-256-GCM）+ `pkg/credential/`（OS keyring → AES → legacy `.key` 三级） |
+| 12 集成验证 + PRD 更新 | 🔄 收尾 | 本计划与 PRD 已迁入 `.omp/plans/` + `.omp/prds/`，里程碑状态已更新（本迁移完成）；roadmap memory 由 omp local memory backend 接管 |
+
+**超出原计划的后续工作（进行中）**: 表格内数据编辑 — `RecordForm.vue` + `composables/useStructuredCell.ts`（工作区未提交改动），对应 PRD 里程碑 4。
 
 ## Summary
 
@@ -12,7 +31,7 @@
 
 | Category | Source | Pattern |
 |---|---|---|
-| Naming | `internal/service/query.go:33` | Go 方法 `ServiceName.MethodName(params) (result, error)`，中文错误消息 |
+| Naming | `internal/service/query.go:37` | Go 方法 `ServiceName.MethodName(params) (result, error)`，中文错误消息 |
 | Naming | `internal/service/query_test.go:15` | 表驱动测试 `func TestServiceName_MethodName_Scenario(t *testing.T)` |
 | Errors | `internal/service/query.go:34-42` | 先校验空值 → `fmt.Errorf("中文描述")` → 返回 `nil, err` |
 | Errors (frontend) | `QueryTabs.vue:89-101` | `parseError` 三层解析：instanceof Error → object.message → JSON.parse |
@@ -20,7 +39,7 @@
 | Data flow | `main.go:23-26` | Go struct → `application.NewService()` → Wails bindings → Pinia store → Vue |
 | CSS | `tokens.css:1-40` | `:root { --color-* }` CSS 自定义属性，组件内 `var(--color-*, fallback)` |
 | Validation | `connection.go:32-38` | Go 侧参数校验：空值检查 + 范围检查 |
-| Context | `connection_pool.go:79` | `context.WithTimeout(context.Background(), N*time.Second)` |
+| Context | `connection_pool.go:142` | `context.WithTimeout(context.Background(), N*time.Second)` |
 | Service reg | `main.go:24-25` | `application.NewService(service.NewXxxService(deps))` |
 
 ## Files to Change
@@ -56,21 +75,25 @@
 - **Action**: 在 `internal/model/query.go` 中新增 `TableSchema`, `FilterCondition`, `TableDataParams`, `PageResult` 类型。`FilterCondition` 包含 `Column`, `Operator` (eq/neq/contains/gt/lt/isnull), `Value`。`PageResult` 包含分页元数据 (Total, Page, PageSize, TotalPages)。
 - **Mirror**: 现有 `ColumnInfo`/`QueryResult` 的 json tag 风格
 - **Validate**: `go build ./internal/...`
+- **Status**: ✅ done
 
 ### Task 2: Go 后端 — GetTableSchema 方法
 - **Action**: 在 `QueryService` 中新增 `GetTableSchema(connectionID, database, table string) ([]model.TableSchema, error)`。执行 `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`。
 - **Mirror**: `GetDatabases`/`GetTables` 的参数校验 + `connManager.GetDBByID` + `USE database` 模式
 - **Validate**: `go test ./internal/service/ -run TestGetTableSchema -v`
+- **Status**: ✅ done
 
 ### Task 3: Go 后端 — GetTableData 方法（分页+排序+筛选）
 - **Action**: 在 `QueryService` 中新增 `GetTableData(params model.TableDataParams) (*model.PageResult, error)`。**安全关键**：先调用内部 `getTableSchema` 获取列名白名单，校验 `SortColumn` 和所有 `Filters[*].Column` 在白名单内；`SortOrder` 仅允许 `ASC`/`DESC`；`Operator` 白名单校验。SQL 组装：`SELECT * FROM table WHERE filters ORDER BY col LIMIT ? OFFSET ?`，值使用 `?` 参数化。同时执行 `SELECT COUNT(*) FROM table WHERE filters` 获取总数。
 - **Mirror**: `Execute` 方法的 connManager + USE database + context timeout 模式
 - **Validate**: `go test ./internal/service/ -run TestGetTableData -v`
+- **Status**: ✅ done
 
 ### Task 4: Go 后端 — 单元测试
 - **Action**: 为 `GetTableSchema` 和 `GetTableData` 编写表驱动测试。验证：空参数校验、不存在的连接/数据库/表报错、列名白名单校验（非法列名被拒绝）、排序方向校验、筛选操作符校验、分页边界（page=0, pageSize=0, pageSize>max）。
 - **Mirror**: 现有 `TestQueryService_Execute_Validation` 表驱动模式
 - **Validate**: `go test ./internal/service/ -cover`
+- **Status**: ✅ done
 
 ### Task 5: 前端 — 类型定义 + Store 扩展
 - **Action**: 在 `types/query.ts` 中新增 TS 接口（与 Go 模型对齐）。在 `query.ts` Pinia store 中新增：
@@ -80,6 +103,7 @@
   - 扩展 `QueryTab` 类型支持 `viewType: 'query' | 'table'` 和相关 table 状态
 - **Mirror**: 现有 `openTab`/`setResult` 的不可变更新模式（`...slice` + `{...obj, field}`）
 - **Validate**: `cd frontend && npx vue-tsc --noEmit`
+- **Status**: ✅ done
 
 ### Task 6: 前端 — QueryResult 增强（分页+排序+筛选）
 - **Action**: 重写 `QueryResult.vue`，增加：
@@ -89,11 +113,13 @@
   - 仅当 `paginated` prop 为 true 时显示分页控件；当为 false 时保持现有查询结果展示
 - **Mirror**: 现有 `ConnectionTree.vue` 的 Teleport 右键菜单模式、`el-table` 的 `show-overflow-tooltip` 列渲染
 - **Validate**: `cd frontend && npx vue-tsc --noEmit && npm run build`
+- **Status**: ✅ done
 
 ### Task 7: 前端 — TableView 组件
 - **Action**: 新建 `TableView.vue`，组合 `QueryResult`(paginated mode) + 顶栏（表名 breadcrumb、导出按钮、刷新按钮）。双击 sidebar 表名时打开此视图替代选中行的查询标签。
 - **Mirror**: `QueryTabs.vue` 的 tab 管理 + editor/result 分栏模式
 - **Validate**: `cd frontend && npx vue-tsc --noEmit`
+- **Status**: ✅ done
 
 ### Task 8: 前端 — DataExport 组件
 - **Action**: 新建 `DataExport.vue` 对话框组件。支持：
@@ -105,6 +131,7 @@
   - 纯前端实现，无需 Go 调用
 - **Mirror**: `ConnectionDialog.vue` 的 `el-dialog` + 表单模式
 - **Validate**: `cd frontend && npx vue-tsc --noEmit`
+- **Status**: ✅ done
 
 ### Task 9: 前端 — CodeMirror SQL 编辑器
 - **Action**: 新建 `SqlEditor.vue` 封装 CodeMirror 6：
@@ -116,6 +143,7 @@
 - **Action**: 修改 `QueryEditor.vue`，将 `<textarea>` 替换为 `<SqlEditor>` 组件
 - **Mirror**: 保持现有 `QueryEditor` 的 props/emits 接口不变（`modelValue`, `isExecuting`, `database`, `execute`, `stop`）
 - **Validate**: `cd frontend && npm run build`
+- **Status**: ✅ done
 
 ### Task 10: 前端 — Sidebar 双击行为调整
 - **Action**: 修改 `Sidebar.vue` 的 `handleNodeDblClick`：
@@ -124,9 +152,10 @@
   - 右键 table 节点 → 新增"查询表"菜单项（打开带 `SELECT * FROM table` 的查询标签）
 - **Mirror**: 现有 `ConnectionTree.vue` 的右键菜单 Teleport 模式
 - **Validate**: `cd frontend && npx vue-tsc --noEmit`
+- **Status**: ✅ done
 
 ### Task 11: 密码加密存储（技术债务 CRITICAL）
-- **Action**: 
+- **Action**:
   - Go 侧使用 `crypto/aes` + `crypto/cipher` 实现 AES-256-GCM 加密
   - 加密密钥存储在 `~/.tuxedosql/.key`（首次运行时随机生成 32 字节）
   - `ConnectionRepository` 保存时自动加密 Password 字段，加载时自动解密
@@ -135,14 +164,16 @@
   - 兼容旧数据：首次加载时检测明文密码 → 自动加密迁移
 - **Mirror**: `connection_repo.go` 的 JSON 持久化模式 + Go 标准库 `crypto/*` 使用惯例
 - **Validate**: `go test ./internal/pkg/crypto/ -v`
+- **Status**: ✅ done（实现演化为 `pkg/crypto` + `pkg/credential` 三级存储：OS keyring → AES 回退 → legacy `.key`）
 
 ### Task 12: 集成验证 + PRD 更新
-- **Action**: 
+- **Action**:
   - 运行 `go build ./... && go vet ./internal/... && go test ./internal/...`
   - 运行 `cd frontend && npx vue-tsc --noEmit && npm run build`
-  - 更新 `.claude/prds/database-connection-management.prd.md`，新增 Phase 3 milestone 并标记 complete
+  - 更新 `.omp/prds/database-connection-management.prd.md`，新增 Phase 3 milestone 并标记 complete
   - 更新 roadmap memory
 - **Validate**: 全量构建通过
+- **Status**: 🔄 收尾中 — PRD 里程碑更新已随 omp 迁移完成（2026-08-01）；集成验证由 omp 接手后执行；roadmap memory 由 omp local memory backend 接管
 
 ## Validation
 
@@ -185,3 +216,5 @@ task build
 - [ ] `go test ./internal/...` 全部通过
 - [ ] `npm run build` 成功
 - [ ] 安全 review 通过（排序/筛选列名白名单校验确认）
+
+> 注：以上验收清单为原计划历史清单；实现已全部落地，验收确认随 omp 会话的集成验证执行。

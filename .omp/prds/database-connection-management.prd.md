@@ -49,7 +49,12 @@
 
 | # | Milestone | Outcome | Status | Plan |
 |---|---|---|---|---|
-| 1 | 连接管理 MVP | 用户可创建/编辑/删除/测试 MySQL 连接，分组管理，库表树形浏览 | complete | [plan](../plans/database-connection-management.plan.md) |
+| 1 | 连接管理 MVP | 用户可创建/编辑/删除/测试 MySQL 连接，分组管理，库表树形浏览 | complete | — |
+| 2 | SQL 编辑器与查询执行 | CodeMirror 编辑器、多标签页、查询历史/收藏、取消执行 | complete | — |
+| 3 | 数据浏览（表格视图） | 分页/排序/筛选、CSV/SQL 导出、ER 图、表信息/DDL 面板、密码加密存储 | complete | [plan](../plans/phase3-data-browsing.plan.md) |
+| 4 | 数据编辑（表格内编辑） | 行级编辑表单（RecordForm）、结构化单元格渲染 | in-progress | — |
+
+> 里程碑 2–4 为实施过程中逐步扩展的范围，超出初始 MVP 定义；里程碑 3 计划自 Claude Code `.claude/plans/` 继承迁移至 `.omp/plans/`（2026-08-01）。
 
 ## Open Questions
 - [ ] 连接信息存储格式？（JSON？YAML？SQLite？） — 需在 /plan 阶段决定
@@ -63,4 +68,4 @@
 | Navicat 功能庞大，用户对「替代」期望过高 | 中 | 低 | 明确 MVP 范围，分阶段交付 |
 
 ---
-*Status: DRAFT — requirements only. Implementation planning pending via /plan.*
+*Status: ACTIVE — 里程碑状态见上表，实施计划位于 `.omp/plans/`。里程碑 4（数据编辑）进行中（工作区未提交改动）。*

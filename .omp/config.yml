@@ -1,0 +1,9 @@
+# Project-level omp settings.
+# TuxedoSQL is omp-native: Claude Code discovery is disabled for this project.
+# List mirrors the global config.yml disabledProviders (project arrays replace
+# global arrays, so carry the global entries forward to preserve their effect).
+disabledProviders:
+  - claude
+  - llama.cpp
+  - ollama
+  - lm-studio
