@@ -120,6 +120,7 @@ jobs:
           cd build
           wails3 generate syso -arch amd64 -icon windows/icon.ico -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_amd64.syso
           cd ..
+          ls -la wails_windows_amd64.syso
           go build -tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui" -o bin/tuxedosql.exe
           rm -f wails_windows_amd64.syso
 
