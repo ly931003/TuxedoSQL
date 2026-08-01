@@ -17,7 +17,9 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          # 固定与本地开发一致的版本：go 1.25.12 在 Windows PE 链接 syso 时
+          # cmd/link 会 nil pointer panic（emitRelocations），1.25.10 稳定
+          go-version: '1.25.10'
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -82,7 +84,9 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          # 固定与本地开发一致的版本：go 1.25.12 在 Windows PE 链接 syso 时
+          # cmd/link 会 nil pointer panic（emitRelocations），1.25.10 稳定
+          go-version: '1.25.10'
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
