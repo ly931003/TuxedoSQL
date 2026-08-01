@@ -114,9 +114,10 @@ jobs:
         run: |
           set -euo pipefail
           TAG="$GITHUB_REF_NAME"
+          REPO="$GITHUB_REPOSITORY"
           # 手动创建过 draft release（例如用 gh release create --draft）时只补传产物，不重复创建
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/* --clobber
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber --repo "$REPO"
           else
-            gh release create "$TAG" dist/* --generate-notes
+            gh release create "$TAG" dist/* --generate-notes --repo "$REPO"
           fi
