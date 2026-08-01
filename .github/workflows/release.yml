@@ -139,9 +139,11 @@ jobs:
           set -euo pipefail
           TAG="$GITHUB_REF_NAME"
           REPO="$GITHUB_REPOSITORY"
+          # download-artifact 保留原始目录结构（dist/bin/...），只收集文件
+          mapfile -t FILES < <(find dist -type f)
           # 手动创建过 draft release（例如用 gh release create --draft）时只补传产物，不重复创建
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/* --clobber --repo "$REPO"
+            gh release upload "$TAG" "${FILES[@]}" --clobber --repo "$REPO"
           else
-            gh release create "$TAG" dist/* --generate-notes --repo "$REPO"
+            gh release create "$TAG" "${FILES[@]}" --generate-notes --repo "$REPO"
           fi
