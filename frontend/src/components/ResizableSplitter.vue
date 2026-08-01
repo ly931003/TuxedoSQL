@@ -6,11 +6,13 @@ const props = withDefaults(
     direction?: 'horizontal' | 'vertical'
     minWidth?: number
     maxWidth?: number
+    side?: 'left' | 'right'
   }>(),
   {
     direction: 'vertical',
     minWidth: 180,
     maxWidth: 500,
+    side: 'left',
   },
 )
 
@@ -26,11 +28,7 @@ function onMouseDown(e: MouseEvent) {
   dragging = true
   document.addEventListener('mousemove', onMouseMove)
   document.addEventListener('mouseup', onMouseUp)
-  if (props.direction === 'horizontal') {
-    document.body.style.cursor = 'col-resize'
-  } else {
-    document.body.style.cursor = 'row-resize'
-  }
+  document.body.style.cursor = props.direction === 'horizontal' ? 'col-resize' : 'row-resize'
   document.body.style.userSelect = 'none'
 }
 
@@ -41,7 +39,9 @@ function onMouseMove(e: MouseEvent) {
   const rect = container.getBoundingClientRect()
 
   if (props.direction === 'horizontal') {
-    const width = e.clientX - rect.left
+    const width = props.side === 'right'
+      ? rect.right - e.clientX
+      : e.clientX - rect.left
     emit('resizeWidth', Math.max(props.minWidth, Math.min(props.maxWidth, width)))
   } else {
     const percent = ((e.clientY - rect.top) / rect.height) * 100

@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { ElMessage } from 'element-plus'
 import type { ColumnInfo, DirtyChange } from '../types/query'
 import type { TableSchema } from '../../bindings/tuxedosql/internal/model/models'
 import { formatCellValue } from '../lib/timeFormat'
+import { useStructuredCell } from '../composables/useStructuredCell'
+
+const { isStructuredType, formatStructuredValue, validateStructuredValue } = useStructuredCell()
 
 const props = defineProps<{
   columns: ColumnInfo[]
@@ -17,7 +21,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'field-dblclick': [fieldName: string]
-  'field-edit-confirm': [fieldName: string, newValue: string]
+  'field-edit-confirm': [fieldName: string, newValue: string | null]
   'field-edit-cancel': []
   'field-edit-update:value': [value: string]
   'prev-row': []
@@ -60,6 +64,21 @@ function getSchema(colName: string): TableSchema | undefined {
   return props.schemas.find((s) => s.name === colName)
 }
 
+function isJsonCol(colName: string): boolean {
+  const sc = getSchema(colName)
+  return sc ? isStructuredType(sc.dataType) : false
+}
+
+function getStructuredDisplayValue(colName: string): string {
+  const dirty = getDirtyValue(colName)
+  const raw = dirty !== undefined ? dirty : props.row?.[colName]
+  const sc = getSchema(colName)
+
+  if (!sc || raw === null || raw === undefined) return ''
+
+  return String(formatStructuredValue(sc.dataType, raw))
+}
+
 function getTypeLabel(colName: string): string {
   const sc = getSchema(colName)
   return sc?.dataType ?? ''
@@ -70,10 +89,30 @@ function getConstraintBadge(colName: string): string {
   if (!sc) return ''
   const parts: string[] = []
   if (sc.columnKey === 'PRI') parts.push('PK')
+
   else if (sc.columnKey === 'UNI') parts.push('UNIQUE')
   else if (sc.columnKey === 'MUL') parts.push('INDEX')
   if (!sc.isNullable) parts.push('NOT NULL')
   return parts.join(' · ')
+}
+
+function confirmFieldEdit(colName: string, rawValue?: string) {
+  const sc = getSchema(colName)
+  let value = rawValue ?? props.editingValue
+  if (sc && isStructuredType(sc.dataType)) {
+    if (value.trim() === '') {
+      // 清空 JSON 输入 → 显式置 NULL
+      emit('field-edit-confirm', colName, null)
+      return
+    }
+    const err = validateStructuredValue(sc.dataType, value)
+    if (err) {
+      ElMessage.warning(err)
+      return
+    }
+    value = JSON.stringify(JSON.parse(value))
+  }
+  emit('field-edit-confirm', colName, value)
 }
 
 function isPK(colName: string): boolean {
@@ -124,8 +163,22 @@ function handleFieldDblClick(colName: string) {
           </div>
           <div class="field-value">
             <!-- Editing mode -->
+            <template v-if="getFieldState(col.name) === 'editing' && isJsonCol(col.name)">
+              <textarea
+                class="field-textarea"
+                :value="editingValue"
+                @input="emit('field-edit-update:value', ($event.target as HTMLTextAreaElement).value)"
+                @keydown.enter.ctrl.stop="confirmFieldEdit(col.name, ($event.target as HTMLTextAreaElement).value)"
+                @keydown.escape.stop="emit('field-edit-cancel')"
+              />
+              <div class="json-edit-actions">
+                <button class="json-btn json-btn--confirm" @click="confirmFieldEdit(col.name)">✓ 确认</button>
+                <button class="json-btn json-btn--cancel" @click="emit('field-edit-cancel')">✗ 取消</button>
+                <span class="json-edit-hint">Ctrl+Enter / Esc</span>
+              </div>
+            </template>
             <input
-              v-if="getFieldState(col.name) === 'editing'"
+              v-else-if="getFieldState(col.name) === 'editing'"
               class="field-input"
               :value="editingValue"
               @input="emit('field-edit-update:value', ($event.target as HTMLInputElement).value)"
@@ -135,6 +188,8 @@ function handleFieldDblClick(colName: string) {
             />
             <!-- NULL display -->
             <span v-else-if="isNull(col.name)" class="null-value">(NULL)</span>
+            <!-- JSON display -->
+            <pre v-else-if="isJsonCol(col.name)" class="json-value">{{ getStructuredDisplayValue(col.name) }}</pre>
             <!-- Normal display -->
             <span v-else class="value-text">{{ getDisplayValue(col.name) }}</span>
           </div>
@@ -346,5 +401,72 @@ function handleFieldDblClick(colName: string) {
 
 .field-input:focus {
   border-color: var(--color-accent, #6366f1);
+}
+
+/* ── JSON display ── */
+.json-value {
+  font-size: 12px;
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  color: var(--color-text, #1a1a2e);
+  background: var(--color-code-bg, #f8f9fa);
+  border-radius: var(--radius-sm, 4px);
+  padding: 8px 12px;
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+
+/* ── JSON edit textarea ── */
+.field-textarea {
+  width: 100%;
+  min-height: 80px;
+  border: 2px solid var(--color-accent, #6366f1);
+  border-radius: var(--radius-sm, 4px);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  background: var(--color-input-bg, #fff);
+  color: var(--color-text, #1a1a2e);
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+.field-textarea:focus {
+  border-color: var(--color-accent, #6366f1);
+}
+
+
+/* ── JSON edit actions ── */
+.json-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.json-btn {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  line-height: 1.5;
+}
+.json-btn--confirm {
+  background: var(--color-accent, #6366f1);
+  color: #fff;
+}
+.json-btn--cancel {
+  background: var(--color-hover, #e5e7eb);
+  color: var(--color-text, #1a1a2e);
+}
+.json-edit-hint {
+  font-size: 11px;
+  color: var(--color-text-secondary, #9ca3af);
+  margin-left: auto;
 }
 </style>

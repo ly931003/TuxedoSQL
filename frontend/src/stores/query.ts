@@ -55,6 +55,7 @@ export const useQueryStore = defineStore('query', {
         database: t.database,
         sql: t.sql,
         viewType: t.viewType,
+        tableName: t.tableName ?? '',
       }))
     },
   },
@@ -141,6 +142,35 @@ export const useQueryStore = defineStore('query', {
       if (this.activeTabId === id) {
         this.activeTabId =
           this.tabs.length > 0 ? this.tabs[Math.min(idx, this.tabs.length - 1)].id : null
+      }
+    },
+
+    closeOtherTabs(id: string): void {
+      const target = this.tabs.find((t) => t.id === id)
+      if (!target) return
+      if (this.tabs.length <= 1) return
+
+      this.tabs = this.tabs.filter((t) => t.id === id)
+      this.activeTabId = target.id
+    },
+
+    closeLeftTabs(id: string): void {
+      const idx = this.tabs.findIndex((t) => t.id === id)
+      if (idx <= 0) return
+
+      this.tabs = this.tabs.slice(idx)
+      if (!this.tabs.some((t) => t.id === this.activeTabId)) {
+        this.activeTabId = this.tabs[0].id
+      }
+    },
+
+    closeRightTabs(id: string): void {
+      const idx = this.tabs.findIndex((t) => t.id === id)
+      if (idx === -1 || idx >= this.tabs.length - 1) return
+
+      this.tabs = this.tabs.slice(0, idx + 1)
+      if (!this.tabs.some((t) => t.id === this.activeTabId)) {
+        this.activeTabId = this.tabs[this.tabs.length - 1].id
       }
     },
 

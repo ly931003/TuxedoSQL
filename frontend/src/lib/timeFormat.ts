@@ -1,5 +1,7 @@
+import { useStructuredCell } from '../composables/useStructuredCell'
+
 /**
- * 根据 MySQL 列类型格式化单元格值，支持时间相关类型的智能显示。
+ * 根据 MySQL 列类型格式化单元格值，支持时间相关类型与 JSON 类型的智能显示。
  *
  * 时间值在 Go 侧经 `parseTime=true` + `loc=` DSN 参数处理后，
  * 以 RFC 3339 字符串（如 "2024-01-15T10:30:00+08:00" 或 "2024-01-15T10:30:00Z"）
@@ -9,7 +11,7 @@
 /**
  * 格式化单个单元格的值。
  *
- * @param colType - MySQL 列类型字符串（如 "DATETIME", "TIMESTAMP", "DATE", "TIME"），
+ * @param colType - MySQL 列类型字符串（如 "DATETIME", "TIMESTAMP", "DATE", "TIME", "JSON"），
  *   来自 Go `ct.DatabaseTypeName()`。
  * @param value - 单元格值，通常是从 JSON 反序列化后的字符串或原始类型。
  * @returns 格式化后的显示字符串。null/undefined 返回空串。
@@ -33,6 +35,11 @@ export function formatCellValue(colType: string, value: unknown): string {
   }
   if (/^TIME/i.test(colType)) {
     return formatTime(value)
+  }
+
+  const structuredCell = useStructuredCell()
+  if (structuredCell.isStructuredType(colType)) {
+    return String(structuredCell.formatStructuredValue(colType, String(value)))
   }
 
   return String(value)

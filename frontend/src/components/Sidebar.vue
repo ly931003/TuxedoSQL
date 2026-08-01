@@ -16,6 +16,7 @@ const store = useConnectionStore()
 const queryStore = useQueryStore()
 const layoutStore = useLayoutStore()
 const treeData = ref<TreeNode[]>([])
+const connectionTreeRef = ref<InstanceType<typeof ConnectionTree>>()
 const groupDialogVisible = ref(false)
 const editingGroup = ref<{ id: string; name: string; parentId: string } | null>(null)
 const createDbVisible = ref(false)
@@ -77,8 +78,77 @@ async function loadData() {
   }
 }
 
+// ── Sharded table grouping ──
+// Detects tables with numeric suffixes (e.g. user_data_0000, order_2025)
+// and groups them under a synthetic sharded_group node.
+// Pattern: base_name + _ + digits (any length)
+
+const SHARD_REGEX = /^(.+)_(\d+)$/
+
+function groupShardedTables(
+  tables: string[],
+  connectionId: string,
+  dbName: string,
+): TreeNode[] {
+  const groups = new Map<string, string[]>()
+  const standalone: string[] = []
+
+  for (const name of tables) {
+    const match = name.match(SHARD_REGEX)
+    if (match) {
+      const base = match[1]
+      if (!groups.has(base)) groups.set(base, [])
+      groups.get(base)!.push(name)
+    } else {
+      standalone.push(name)
+    }
+  }
+
+  const result: TreeNode[] = []
+
+  // Standalone tables (no shard pattern match)
+  for (const name of standalone) {
+    result.push({
+      key: `${connectionId}/${dbName}/${name}`,
+      label: name,
+      type: 'table',
+      leaf: true,
+    })
+  }
+
+  // Sharded groups (2+ tables sharing the same base name)
+  for (const [base, shards] of [...groups.entries()]) {
+    if (shards.length === 1) {
+      // Single shard — treat as regular table
+      result.push({
+        key: `${connectionId}/${dbName}/${shards[0]}`,
+        label: shards[0],
+        type: 'table',
+        leaf: true,
+      })
+    } else {
+      // Multiple shards — group them
+      shards.sort()
+      result.push({
+        key: `${connectionId}/${dbName}/__sharded:${base}`,
+        label: `${base} (${shards.length} 张分表)`,
+        type: 'sharded_group',
+        leaf: false,
+        children: shards.map((name) => ({
+          key: `${connectionId}/${dbName}/${name}`,
+          label: name,
+          type: 'table' as const,
+          leaf: true,
+        })),
+      })
+    }
+  }
+
+  return result.sort((a, b) => a.label.localeCompare(b.label))
+}
+
 async function handleLoadNode(node: TreeNode, resolve: (children: TreeNode[]) => void) {
-  if (node.type === 'group') {
+  if (node.type === 'group' || node.type === 'sharded_group') {
     resolve(node.children ?? [])
     return
   }
@@ -104,12 +174,7 @@ async function handleLoadNode(node: TreeNode, resolve: (children: TreeNode[]) =>
     const parts = node.key.split('/')
     try {
       const tables = await ConnectionService.GetTables(parts[0], parts.slice(1).join('/'))
-      const children: TreeNode[] = tables.map((t: string) => ({
-        key: `${node.key}/${t}`,
-        label: t,
-        type: 'table',
-        leaf: true,
-      }))
+      const children = groupShardedTables(tables, parts[0], parts.slice(1).join('/'))
       resolve(children)
     } catch (err) {
       showToast(parseError(err))
@@ -312,6 +377,24 @@ async function handleDropTable(connId: string, dbName: string, tableName: string
     showToast(parseError(err))
   }
 }
+
+async function handleRefreshDatabase(connId: string, dbName: string) {
+  const nodeKey = `${connId}/${dbName}`
+  const tree = connectionTreeRef.value?.treeRef
+  if (!tree) return
+  try {
+    const node = tree.getNode(nodeKey) as any
+    if (node) {
+      node.loaded = false
+      node.childNodes = []
+      if (node.expanded) {
+        node.expand()
+      }
+    }
+  } catch (err) {
+    showToast(parseError(err))
+  }
+}
 </script>
 
 <template>
@@ -324,6 +407,7 @@ async function handleDropTable(connId: string, dbName: string, tableName: string
       </div>
     </div>
     <ConnectionTree
+      ref="connectionTreeRef"
       :nodes="treeData"
       :load-fn="handleLoadNode"
       @node-click="handleNodeClick"
@@ -338,6 +422,7 @@ async function handleDropTable(connId: string, dbName: string, tableName: string
       @create-table="handleCreateTable"
       @drop-database="handleDropDatabase"
       @drop-table="handleDropTable"
+      @refresh-database="handleRefreshDatabase"
     />
     <GroupDialog
       :visible="groupDialogVisible"

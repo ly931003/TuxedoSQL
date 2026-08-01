@@ -41,6 +41,30 @@ describe('formatCellValue', () => {
     expect(formatCellValue('VARCHAR', 'hello')).toBe('hello')
   })
 
+  it('pretty-prints valid JSON strings for JSON columns', () => {
+    expect(formatCellValue('JSON', '{"foo":"bar","count":1}')).toBe(`{
+  "foo": "bar",
+  "count": 1
+}`)
+  })
+
+  it('returns invalid JSON strings unchanged for JSON columns', () => {
+    expect(formatCellValue('JSON', '{foo:bar}')).toBe('{foo:bar}')
+  })
+
+  it('pretty-prints valid JSON strings for JSONB columns', () => {
+    expect(formatCellValue('JSONB', '{"items":[1,2]}')).toBe(`{
+  "items": [
+    1,
+    2
+  ]
+}`)
+  })
+
+  it('does not format JSON-like strings for non-JSON columns', () => {
+    expect(formatCellValue('VARCHAR', '{"foo":"bar"}')).toBe('{"foo":"bar"}')
+  })
+
   it('matches column types case-insensitively', () => {
     expect(formatCellValue('datetime', '2024-01-15T10:30:00Z')).toBe('2024-01-15 10:30:00')
   })
@@ -51,5 +75,23 @@ describe('formatCellValue', () => {
 
   it('returns datetime values without T separator as-is', () => {
     expect(formatCellValue('DATETIME', '2024-01-15 10:30:00')).toBe('2024-01-15 10:30:00')
+  })
+
+  it('returns empty string for null JSON values', () => {
+    expect(formatCellValue('JSON', null)).toBe('')
+  })
+
+  it('handles empty string for JSON columns', () => {
+    expect(formatCellValue('JSON', '')).toBe('')
+  })
+
+  it('keeps whitespace-only JSON input unchanged', () => {
+    expect(formatCellValue('JSON', '  ')).toBe('  ')
+  })
+
+  it('passes through JSON scalar values', () => {
+    expect(formatCellValue('JSON', 'null')).toBe('null')
+    expect(formatCellValue('JSON', 'true')).toBe('true')
+    expect(formatCellValue('JSON', '42')).toBe('42')
   })
 })

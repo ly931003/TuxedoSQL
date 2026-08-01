@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import Sidebar from './components/Sidebar.vue'
 import QueryTabs from './components/QueryTabs.vue'
 import ConnectionDialog from './components/ConnectionDialog.vue'
@@ -14,6 +14,13 @@ const sidebarRef = ref<InstanceType<typeof Sidebar> | null>(null)
 const isDark = ref(document.documentElement.getAttribute('data-theme') === 'dark')
 const queryStore = useQueryStore()
 const showHistory = ref(false)
+
+// Apply persisted zoom scale on mount (store init reads localStorage but doesn't apply zoom)
+onMounted(() => {
+  if (layoutStore.fontScale !== 1) {
+    document.documentElement.style.zoom = String(layoutStore.fontScale)
+  }
+})
 
 function handlePickSql(sql: string) {
   queryStore.addTab({

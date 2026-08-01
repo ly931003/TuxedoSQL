@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useQueryStore } from '../stores/query'
 import { SortOrder } from '../types/query'
@@ -22,6 +22,10 @@ const props = defineProps<{
 
 const exportVisible = ref(false)
 const loading = ref(false)
+
+// ── 请求序号：防止陈旧的 GetTableData 响应覆盖新请求（连点翻页/排序/筛选时）──
+let loadSeq = 0
+let disposed = false
 
 // ── Inline editing state ──
 const editingCell = ref<EditingCell | null>(null)
@@ -98,10 +102,11 @@ async function loadData(overrides?: {
 }) {
   const tab = props.tab
   if (!tab.tableName || !tab.connectionId || !tab.database) return
-  if (loading.value) return
+  const seq = ++loadSeq
 
   if (!schemaLoaded.value) {
     await loadSchema()
+    if (seq !== loadSeq) return // 加载表结构期间已被更新的请求取代
   }
 
   loading.value = true
@@ -125,20 +130,24 @@ async function loadData(overrides?: {
       filters: filters ? new models.FilterGroup(filters) : null,
     })
     const result = await QueryService.GetTableData(params)
-    if (result) {
-      store.setResult(tab.id, buildResultFromPage(result))
-      store.setTablePageResult(tab.id, result.total, result.totalPages)
-      // Update bottom bar with the actual executed SQL
-      if (result.sql) {
-        store.updateLastExecutedSQL(tab.id, result.sql)
-        store.addMessage(tab.id, `📋 ${result.sql}`)
-      }
+    // 丢弃陈旧响应（请求序号不匹配或组件已卸载）
+    if (!result || seq !== loadSeq || disposed) return
+    store.setResult(tab.id, buildResultFromPage(result))
+    store.setTablePageResult(tab.id, result.total, result.totalPages)
+    // Update bottom bar with the actual executed SQL
+    if (result.sql) {
+      store.updateLastExecutedSQL(tab.id, result.sql)
+      store.addMessage(tab.id, `📋 ${result.sql}`)
     }
   } catch (err: unknown) {
-    store.addMessage(tab.id, parseError(err))
+    if (seq === loadSeq && !disposed) {
+      store.addMessage(tab.id, parseError(err))
+    }
   } finally {
-    store.setExecuting(tab.id, false)
-    loading.value = false
+    if (seq === loadSeq) {
+      store.setExecuting(tab.id, false)
+      loading.value = false
+    }
   }
 }
 
@@ -244,7 +253,7 @@ function handleCellDblClick(rowIndex: number, columnName: string) {
   editingCell.value = { rowIndex, columnName }
 }
 
-function handleCellEditConfirm(rowIndex: number, columnName: string, newValue: string) {
+function handleCellEditConfirm(rowIndex: number, columnName: string, newValue: string | null) {
   if (!editingCell.value) return
 
   const rows = props.tab.result?.rows ?? []
@@ -255,13 +264,22 @@ function handleCellEditConfirm(rowIndex: number, columnName: string, newValue: s
   }
 
   const oldValue = row[columnName]
-  const oldStr = oldValue === null || oldValue === undefined ? '' : String(oldValue)
   const key = dirtyKey(rowIndex, columnName)
 
-  if (newValue === oldStr) {
-    delete dirtyMap[key]
-    editingCell.value = null
-    return
+  if (newValue === null) {
+    // 显式置 NULL：旧值本就是 NULL 时视为无改动
+    if (oldValue === null || oldValue === undefined) {
+      delete dirtyMap[key]
+      editingCell.value = null
+      return
+    }
+  } else {
+    const oldStr = oldValue === null || oldValue === undefined ? '' : String(oldValue)
+    if (newValue === oldStr) {
+      delete dirtyMap[key]
+      editingCell.value = null
+      return
+    }
   }
 
   const pks: Record<string, unknown> = {}
@@ -338,7 +356,9 @@ async function handleApply() {
         // 审计 SQL — 同时显示 toast 和写入消息面板
         const auditSQL =
           result.sql ||
-          `UPDATE ${tab.tableName} SET ${change.columnName} = '${change.newValue}' WHERE ...`
+          `UPDATE ${tab.tableName} SET ${change.columnName} = ${
+            change.newValue === null ? 'NULL' : `'${change.newValue}'`
+          } WHERE ...`
         ElMessage({ message: auditSQL, type: 'success', duration: 3000 })
         store.addMessage(tab.id, `✅ ${auditSQL}`)
       } else {
@@ -360,6 +380,10 @@ async function handleApply() {
     await loadData()
   }
 }
+
+onUnmounted(() => {
+  disposed = true
+})
 
 onMounted(() => loadData())
 </script>
@@ -425,7 +449,6 @@ onMounted(() => loadData())
         :editable="true"
         :editing-cell="editingCell"
         :editing-value="editingValue"
-        :selected-row-index="selectedRowIndex"
         @sort-change="handleSortChange"
         @filter-change="handleFilterChange"
         @update:page="handlePageChange"
@@ -451,7 +474,7 @@ onMounted(() => loadData())
         :editing-value="editingValue"
         @field-dblclick="handleFormFieldDblClick"
         @field-edit-confirm="
-          (fieldName: string, newValue: string) =>
+          (fieldName: string, newValue: string | null) =>
             handleCellEditConfirm(formRowIndex, fieldName, newValue)
         "
         @field-edit-cancel="handleCellEditCancel"

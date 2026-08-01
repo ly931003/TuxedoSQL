@@ -66,7 +66,7 @@ export interface TestResult {
 export interface TreeNode {
   key: string
   label: string
-  type: 'group' | 'connection' | 'database' | 'table'
+  type: 'group' | 'connection' | 'database' | 'table' | 'sharded_group'
   children?: TreeNode[]
   leaf: boolean
 }

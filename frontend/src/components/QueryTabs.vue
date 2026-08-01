@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, computed } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useQueryStore } from '../stores/query'
 import { useLayoutStore } from '../stores/layout'
 import { QueryService } from '../../bindings/tuxedosql/internal/service'
@@ -22,6 +22,81 @@ const editingTabId = ref<string | null>(null)
 const editTitle = ref('')
 const executePromises = new Map<string, { cancel: () => void }>()
 const sidebarTab = ref<'messages' | 'info' | 'ddl' | 'erd'>('messages')
+
+// ── Tab context menu ──
+const ctxVisible = ref(false)
+const ctxPos = ref({ x: 0, y: 0 })
+const ctxTabId = ref<string | null>(null)
+
+function handleTabContextMenu(event: MouseEvent, tabId: string) {
+  event.preventDefault()
+  ctxTabId.value = tabId
+  ctxPos.value = { x: event.clientX, y: event.clientY }
+  ctxVisible.value = true
+}
+
+function closeContextMenu() {
+  ctxVisible.value = false
+  ctxTabId.value = null
+}
+
+// 菜单打开时聚焦，支持 Esc 关闭与键盘导航
+watch(ctxVisible, (visible) => {
+  if (visible) {
+    nextTick(() => {
+      document.querySelector<HTMLElement>('.tab-ctx-menu')?.focus()
+    })
+  }
+})
+
+function onGlobalKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeContextMenu()
+}
+onMounted(() => window.addEventListener('keydown', onGlobalKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown))
+
+function handleCloseTab() {
+  if (ctxTabId.value) handleTabClose(ctxTabId.value)
+  closeContextMenu()
+}
+
+function handleCloseOthers() {
+  if (!ctxTabId.value) return
+  if (store.tabs.length <= 1) return
+  for (const tab of store.tabs) {
+    if (tab.id === ctxTabId.value) continue
+    const p = executePromises.get(tab.id)
+    if (p) { p.cancel(); executePromises.delete(tab.id) }
+  }
+  store.closeOtherTabs(ctxTabId.value)
+  closeContextMenu()
+}
+
+function handleCloseLeft() {
+  if (!ctxTabId.value) return
+  const idx = store.tabs.findIndex((t) => t.id === ctxTabId.value)
+  if (idx <= 0) return
+  for (let i = 0; i < idx; i++) {
+    const p = executePromises.get(store.tabs[i].id)
+    if (p) { p.cancel(); executePromises.delete(store.tabs[i].id) }
+  }
+  store.closeLeftTabs(ctxTabId.value)
+  closeContextMenu()
+}
+
+function handleCloseRight() {
+  if (!ctxTabId.value) return
+  const idx = store.tabs.findIndex((t) => t.id === ctxTabId.value)
+  if (idx === -1 || idx >= store.tabs.length - 1) return
+  for (let i = idx + 1; i < store.tabs.length; i++) {
+    const p = executePromises.get(store.tabs[i].id)
+    if (p) { p.cancel(); executePromises.delete(store.tabs[i].id) }
+  }
+  store.closeRightTabs(ctxTabId.value)
+  closeContextMenu()
+}
+
+const ctxTabIndex = () => store.tabs.findIndex((t) => t.id === ctxTabId.value)
 
 // ── Schema cache for autocomplete ──
 const SCHEMA_CACHE_TTL_MS = 30_000
@@ -266,12 +341,21 @@ onMounted(async () => {
     const restored = await QueryService.LoadTabs()
     if (restored && restored.length > 0) {
       for (const ts of restored) {
-        store.openTab({
-          connectionId: ts.connectionId,
-          database: ts.database,
-          sql: ts.sql ?? '',
-          title: ts.title,
-        })
+        if (ts.viewType === 'table' && ts.tableName) {
+          store.openTableView({
+            connectionId: ts.connectionId,
+            database: ts.database,
+            tableName: ts.tableName,
+            title: ts.title,
+          })
+        } else {
+          store.openTab({
+            connectionId: ts.connectionId,
+            database: ts.database,
+            sql: ts.sql ?? '',
+            title: ts.title,
+          })
+        }
       }
     }
   } catch {
@@ -316,6 +400,7 @@ onMounted(async () => {
           :class="{ active: tab.id === store.activeTabId }"
           @click="handleTabClick(tab.id)"
           @dblclick="handleTabDblClick(tab)"
+          @contextmenu.prevent="handleTabContextMenu($event, tab.id)"
         >
           <!-- Tab icon -->
           <span class="tab-icon">{{ tab.viewType === 'table' ? '⊞' : '▸' }}</span>
@@ -360,6 +445,7 @@ onMounted(async () => {
         <ResizableSplitter
           v-show="layoutStore.rightSidebarVisible"
           direction="horizontal"
+          side="right"
           :min-width="160"
           :max-width="600"
           @resize-width="handleRightSidebarResize"
@@ -460,6 +546,51 @@ onMounted(async () => {
       </template>
     </template>
   </div>
+
+  <!-- Tab context menu -->
+  <Teleport to="body">
+    <div v-if="ctxVisible" class="ctx-fixed" @click="closeContextMenu" />
+    <div
+      v-if="ctxVisible"
+      class="ctx-menu tab-ctx-menu"
+      role="menu"
+      aria-label="标签页操作"
+      tabindex="-1"
+      :style="{ left: ctxPos.x + 'px', top: ctxPos.y + 'px' }"
+    >
+      <div class="ctx-item" role="menuitem" tabindex="-1" @click="handleCloseTab">关闭</div>
+      <div
+        class="ctx-item"
+        role="menuitem"
+        tabindex="-1"
+        :class="{ 'ctx-item--disabled': store.tabs.length <= 1 }"
+        :aria-disabled="store.tabs.length <= 1"
+        @click="handleCloseOthers()"
+      >
+        关闭其他
+      </div>
+      <div
+        class="ctx-item"
+        role="menuitem"
+        tabindex="-1"
+        :class="{ 'ctx-item--disabled': ctxTabIndex() <= 0 }"
+        :aria-disabled="ctxTabIndex() <= 0"
+        @click="handleCloseLeft()"
+      >
+        关闭左侧
+      </div>
+      <div
+        class="ctx-item"
+        role="menuitem"
+        tabindex="-1"
+        :class="{ 'ctx-item--disabled': ctxTabIndex() >= store.tabs.length - 1 }"
+        :aria-disabled="ctxTabIndex() >= store.tabs.length - 1"
+        @click="handleCloseRight()"
+      >
+        关闭右侧
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -689,5 +820,42 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+</style>
+
+<style>
+/* Tab context menu (unscoped — teleported to body) */
+.ctx-fixed {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+}
+.ctx-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--color-dropdown-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 120px;
+  box-shadow: 0 4px 16px var(--color-dropdown-shadow);
+}
+.ctx-item {
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--color-text);
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+.ctx-item:hover {
+  background: var(--color-dropdown-hover);
+}
+.ctx-item--disabled {
+  color: var(--color-text-muted, #999);
+  cursor: default;
+}
+.ctx-item--disabled:hover {
+  background: transparent;
 }
 </style>

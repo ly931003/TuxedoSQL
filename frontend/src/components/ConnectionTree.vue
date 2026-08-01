@@ -20,6 +20,7 @@ const emit = defineEmits<{
   'create-table': [connectionId: string, databaseName: string]
   'drop-database': [connectionId: string, databaseName: string]
   'drop-table': [connectionId: string, databaseName: string, tableName: string]
+  'refresh-database': [connectionId: string, databaseName: string]
 }>()
 
 function allowDrag(node: any): boolean {
@@ -71,6 +72,8 @@ function getIcon(type: string): string {
       return '\u{1F5C4}'
     case 'table':
       return '\u{1F4CB}'
+    case 'sharded_group':
+      return '\u{1F4C2}'
     default:
       return '\u{1F4C4}'
   }
@@ -174,6 +177,13 @@ function handleDropTable() {
   closeContextMenu()
 }
 
+function handleRefreshDatabase() {
+  if (!ctxNode.value) return
+  const { connId, db } = parseNodeKey(ctxNode.value.key)
+  emit('refresh-database', connId, db)
+  closeContextMenu()
+}
+
 defineExpose({ treeRef })
 </script>
 
@@ -223,6 +233,7 @@ defineExpose({ treeRef })
           <div class="ctx-item ctx-item--danger" @click="handleDropTable">🗑 删除表</div>
         </template>
         <template v-else-if="ctxNode?.type === 'database'">
+          <div class="ctx-item" @click="handleRefreshDatabase">🔄 刷新</div>
           <div class="ctx-item" @click="handleCreateTable">📄 新建表</div>
           <div class="ctx-item ctx-item--danger" @click="handleDropDatabase">🗑 删除数据库</div>
         </template>
