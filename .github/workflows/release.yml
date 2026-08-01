@@ -22,15 +22,13 @@ jobs:
         with:
           node-version: '20'
 
-      # go mod tidy 会遍历整个模块树（含 node_modules），必须让依赖先装完，
-      # 否则与 task 内部的 npm install 并发时会出现目录不存在的竞态
+      # go mod tidy 会遍历整个模块树（含 node_modules，其中部分 npm 包自带 .go 文件），
+      # 与 npm install 并发时存在目录消失竞态；CI 因此绕开 task 依赖图，
+      # 按固定顺序手动执行构建，并给 node_modules 放 go.mod 桩作为额外保险。
       - name: Pre-install frontend deps
         run: npm ci
         working-directory: frontend
 
-      # node_modules 内部分 npm 包自带 .go 文件（如 @tybys/wasm-util），
-      # go mod tidy 遍历模块树时会把 @ 开头的路径当版本标记而报错。
-      # 放一个 go.mod 桩文件使其成为模块边界，Go 的包遍历会跳过它。
       - name: Mark node_modules as Go module boundary
         run: printf 'module node_modules\n' > frontend/node_modules/go.mod
 
@@ -46,17 +44,26 @@ jobs:
       - name: Install wails3 CLI (match go.mod)
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha2.117
 
-      - name: Install task runner
-        uses: arduino/setup-task@v2
-
-      - name: Build binary
-        run: task linux:build
+      - name: Build binary (bindings → frontend → go build)
+        run: |
+          set -euo pipefail
+          wails3 generate bindings -f '-tags production -trimpath -buildvcs=false -ldflags="-w -s"' -clean=true -ts
+          npm run build
+          wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
+          mkdir -p build/linux/appimage
+          wails3 generate .desktop -name tuxedosql -exec tuxedosql -icon tuxedosql -outputfile build/linux/tuxedosql.desktop -categories 'Development;'
+          go build -tags production -trimpath -buildvcs=false -ldflags="-w -s" -o bin/tuxedosql
 
       - name: Package AppImage / deb / rpm
         run: |
-          task linux:create:appimage
-          task linux:create:deb
-          task linux:create:rpm
+          set -euo pipefail
+          cd build/linux/appimage
+          cp ../../../bin/tuxedosql tuxedosql
+          cp ../../appicon.png tuxedosql.png
+          wails3 generate appimage -binary tuxedosql -icon tuxedosql.png -desktopfile ../tuxedosql.desktop -outputdir ../../../bin -builddir "$GITHUB_WORKSPACE/build/linux/appimage/build"
+          cd "$GITHUB_WORKSPACE"
+          wails3 tool package -name tuxedosql -format deb -config ./build/linux/nfpm/nfpm.yaml -out bin
+          wails3 tool package -name tuxedosql -format rpm -config ./build/linux/nfpm/nfpm.yaml -out bin
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -80,15 +87,10 @@ jobs:
         with:
           node-version: '20'
 
-      # go mod tidy 会遍历整个模块树（含 node_modules），必须让依赖先装完，
-      # 否则与 task 内部的 npm install 并发时会出现目录不存在的竞态
       - name: Pre-install frontend deps
         run: npm ci
         working-directory: frontend
 
-      # node_modules 内部分 npm 包自带 .go 文件（如 @tybys/wasm-util），
-      # go mod tidy 遍历模块树时会把 @ 开头的路径当版本标记而报错。
-      # 放一个 go.mod 桩文件使其成为模块边界，Go 的包遍历会跳过它。
       - name: Mark node_modules as Go module boundary
         run: printf 'module node_modules\n' > frontend/node_modules/go.mod
 
@@ -105,14 +107,23 @@ jobs:
       - name: Install makensis
         run: sudo apt-get install -y nsis
 
-      - name: Install task runner
-        uses: arduino/setup-task@v2
-
-      - name: Cross-compile exe (CGO disabled)
-        run: task windows:build
+      - name: Cross-compile exe (bindings → frontend → go build)
+        run: |
+          set -euo pipefail
+          wails3 generate bindings -f '-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui"' -clean=true -ts
+          npm run build
+          wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
+          cd build
+          wails3 generate syso -arch amd64 -icon windows/icon.ico -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_amd64.syso
+          cd ..
+          go build -tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui" -o bin/tuxedosql.exe
+          rm -f wails_windows_amd64.syso
 
       - name: Create NSIS installer
-        run: task windows:create:nsis:installer
+        run: |
+          set -euo pipefail
+          wails3 generate webview2bootstrapper -dir build/windows/nsis
+          makensis -DARG_WAILS_AMD64_BINARY="$GITHUB_WORKSPACE/bin/tuxedosql.exe" build/windows/nsis/project.nsi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
