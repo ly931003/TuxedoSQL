@@ -7,7 +7,7 @@ require (
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/lib/pq v1.12.3
 	github.com/testcontainers/testcontainers-go v0.43.0
-	github.com/wailsapp/wails/v3 v3.0.0-alpha2.117
+	github.com/wailsapp/wails/v3 v3.0.0-alpha2.121
 	github.com/zalando/go-keyring v0.2.6
 	golang.org/x/crypto v0.52.0
 	modernc.org/sqlite v1.52.0
