@@ -10,7 +10,7 @@ TuxedoSQL is a Wails v3 desktop SQL client — Go 1.25 backend, Vue 3 + TypeScri
 ```
 .
 ├── main.go                   # App assembly — creates store → repos → services → window
-├── .omp/                     # omp agent config (this file, RULES.md, config.yml)
+├── .omp/                     # omp agent config (this file, RULES.md, branch-strategy.md, config.yml)
 ├── Taskfile.yml              # Root task delegation (→ build/Taskfile.yml for quality commands)
 ├── build/
 │   ├── config.yml            # App metadata (v0.1.0), Wails dev orchestration
@@ -113,6 +113,13 @@ task build:docker                 # Distroless Docker image
 # Bindings (after Go model changes)
 wails3 generate bindings          # Regenerate TS bridge
 ```
+
+## BRANCH STRATEGY
+- **轻量主干开发（GitHub Flow 变体）** — 完整策略见 `.omp/branch-strategy.md`
+- `master` 始终可发布；功能走短命分支 `feat/`/`fix/`/`chore/`，squash 合并后即删
+- 单文件小修复可直推 master（先过 `task common:check`）；多文件改动/依赖升级走分支 + PR
+- 版本：语义化预发布 `v0.1.0-alpha.N`，里程碑完成从 master 直接打 tag
+- wails alpha 线：每 2 周一次 `chore/deps/wails` 批量升级（标准流程见 branch-strategy.md），平台相关崩溃修复可提前
 
 ## NOTES
 - Theme logic split between `main.ts` (init) and `App.vue` (toggle) — both use `data-theme` attribute
