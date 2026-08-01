@@ -723,11 +723,9 @@ func (s *ConnectionService) GetCollations(connectionID, charset string) ([]strin
 
 	var collations []string
 	for rows.Next() {
-		var collation string
-		var isDefault string
-		var compiled string
-		var sortlen int
-		if err := rows.Scan(&collation, &charset, &isDefault, &compiled, &sortlen); err != nil {
+		var collation, charsetName, isDefault, compiled string
+		var id, sortlen int
+		if err := rows.Scan(&collation, &charsetName, &id, &isDefault, &compiled, &sortlen); err != nil {
 			return nil, fmt.Errorf("读取排序规则失败: %w", err)
 		}
 		collations = append(collations, collation)
