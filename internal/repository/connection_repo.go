@@ -7,6 +7,7 @@ import (
 
 	"tuxedosql/internal/model"
 	"tuxedosql/pkg/credential"
+	"tuxedosql/pkg/crypto"
 	"tuxedosql/pkg/fileutil"
 )
 
@@ -57,7 +58,7 @@ func (r *ConnectionRepository) LoadConnections() ([]model.Connection, error) {
 				continue
 			}
 			connections[i].Password = pw
-		} else if isLegacyAES(connections[i].Password) {
+		} else if crypto.IsEncrypted(connections[i].Password) {
 			// "aes256gcm$" 密文：先尝试旧 .key 文件，再回退机器 ID 密钥
 			pw, err := r.cred.RetrieveWithLegacyKey(connections[i].ID, connections[i].Password)
 			if err != nil {
@@ -73,9 +74,9 @@ func (r *ConnectionRepository) LoadConnections() ([]model.Connection, error) {
 }
 
 // isLegacyAES 判断密码字段是否为 AES 加密密文（旧版或回退路径）。
+// Deprecated: 使用 crypto.IsEncrypted 替代。
 func isLegacyAES(s string) bool {
-	// 检查是否有 "aes256gcm$" 前缀，排除 "keyring:" 哨兵
-	return len(s) > len("aes256gcm$") && s[:len("aes256gcm$")] == "aes256gcm$"
+	return crypto.IsEncrypted(s)
 }
 
 // SaveConnections 将所有连接安全存储后保存到文件。
