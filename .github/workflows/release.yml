@@ -117,12 +117,11 @@ jobs:
           wails3 generate bindings -f '-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui"' -clean=true -ts
           cd frontend && npm run build && cd ..
           cd build && wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin && cd ..
-          cd build
-          wails3 generate syso -arch amd64 -icon windows/icon.ico -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_amd64.syso
-          cd ..
-          ls -la wails_windows_amd64.syso
+          # 不生成/链接 syso：Go 链接器在 runner 环境下处理 wails syso 的 PE 重定位
+          # 会确定性 panic（cmd/link emitRelocations nil pointer，本地无法复现），
+          # 先跳过图标资源内嵌，exe 功能不受影响；NSIS 安装包仍带完整图标。
+          go env GOOS GOARCH CGO_ENABLED GOAMD64 GOTOOLCHAIN
           go build -tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui" -o bin/tuxedosql.exe
-          rm -f wails_windows_amd64.syso
 
       - name: Create NSIS installer
         run: |
