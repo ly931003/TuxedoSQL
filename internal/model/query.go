@@ -33,6 +33,8 @@ type TabState struct {
 	ConnectionID string `json:"connectionId"` // 关联的连接ID
 	Database     string `json:"database"`     // 当前选中的数据库
 	SQL          string `json:"sql"`          // 编辑器中的 SQL 文本
+	ViewType     string `json:"viewType"`     // 视图类型: "query" 或 "table"
+	TableName    string `json:"tableName"`    // 表视图对应的表名 (仅 viewType="table" 时有效)
 }
 
 type QueryHistoryEntry struct {

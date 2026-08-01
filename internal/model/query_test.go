@@ -122,8 +122,8 @@ func TestQueryResultJSONRoundTrip(t *testing.T) {
 }
 
 func TestTabStateJSONRoundTrip(t *testing.T) {
-	out := mustRoundTrip(t, TabState{ID: "tab-1", Title: "Users", ConnectionID: "conn-1", Database: "app", SQL: "select * from users"})
-	if out.ID != "tab-1" || out.Title != "Users" || out.ConnectionID != "conn-1" || out.Database != "app" || out.SQL != "select * from users" {
+	out := mustRoundTrip(t, TabState{ID: "tab-1", Title: "Users", ConnectionID: "conn-1", Database: "app", SQL: "select * from users", ViewType: "table", TableName: "users"})
+	if out.ID != "tab-1" || out.Title != "Users" || out.ConnectionID != "conn-1" || out.Database != "app" || out.SQL != "select * from users" || out.ViewType != "table" || out.TableName != "users" {
 		t.Fatalf("unexpected round-trip result: %+v", out)
 	}
 }
