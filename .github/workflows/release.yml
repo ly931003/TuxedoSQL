@@ -49,7 +49,7 @@ jobs:
           set -euo pipefail
           wails3 generate bindings -f '-tags production -trimpath -buildvcs=false -ldflags="-w -s"' -clean=true -ts
           cd frontend && npm run build && cd ..
-          wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
+          cd build && wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin && cd ..
           mkdir -p build/linux/appimage
           wails3 generate .desktop -name tuxedosql -exec tuxedosql -icon tuxedosql -outputfile build/linux/tuxedosql.desktop -categories 'Development;'
           go build -tags production -trimpath -buildvcs=false -ldflags="-w -s" -o bin/tuxedosql
@@ -112,7 +112,7 @@ jobs:
           set -euo pipefail
           wails3 generate bindings -f '-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui"' -clean=true -ts
           cd frontend && npm run build && cd ..
-          wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
+          cd build && wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin && cd ..
           cd build
           wails3 generate syso -arch amd64 -icon windows/icon.ico -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_amd64.syso
           cd ..
