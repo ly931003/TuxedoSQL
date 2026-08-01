@@ -6,10 +6,12 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 
 	"tuxedosql/internal/model"
 )
@@ -73,12 +75,15 @@ func (m *ConnectionManager) createSSHTunnel(conn *model.Connection) (*sshTunnel,
 	}
 
 	// 构建 SSH 客户端配置
+	hostKeyCallback, err := buildHostKeyCallback()
+	if err != nil {
+		return nil, fmt.Errorf("加载 known_hosts 失败: %w", err)
+	}
+
 	sshConfig := &ssh.ClientConfig{
 		User:            cfg.User,
 		Auth:            buildSSHAuthMethods(cfg),
-		// TODO: InsecureIgnoreHostKey 跳过主机密钥验证，存在 MITM 风险。
-		// 未来应使用 cfg.HostKeyAlgo + known_hosts 进行主机密钥校验。
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         10 * time.Second,
 	}
 
@@ -281,4 +286,25 @@ func expandPath(path string) string {
 		return home + path[1:]
 	}
 	return path
+}
+
+// buildHostKeyCallback 构建 SSH 主机密钥验证回调。
+// 优先从 ~/.ssh/known_hosts 加载，回退到 /etc/ssh/ssh_known_hosts。
+// 如果两者都不可用，返回错误拒绝连接。
+func buildHostKeyCallback() (ssh.HostKeyCallback, error) {
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		userKnownHosts := filepath.Join(homeDir, ".ssh", "known_hosts")
+		if _, statErr := os.Stat(userKnownHosts); statErr == nil {
+			return knownhosts.New(userKnownHosts)
+		}
+	}
+
+	systemKnownHosts := "/etc/ssh/ssh_known_hosts"
+	if _, statErr := os.Stat(systemKnownHosts); statErr == nil {
+		return knownhosts.New(systemKnownHosts)
+	}
+
+	return nil, fmt.Errorf("未找到 known_hosts 文件（~/.ssh/known_hosts 或 %s），无法验证 SSH 主机密钥。"+
+		"请先通过 ssh 命令连接目标服务器以将其主机密钥添加到 known_hosts", systemKnownHosts)
 }

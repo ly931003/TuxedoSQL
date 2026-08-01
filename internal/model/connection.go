@@ -13,8 +13,8 @@ type Connection struct {
 	Username  string    `json:"username"`
 	Password  string    `json:"password"`
 	Database  string    `json:"database"`
-	Driver    string    `json:"driver"`    // 数据库驱动类型（mysql/postgres/sqlite），空值等价于 "mysql"
-	Timezone  string    `json:"timezone"`  // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
+	Driver    string    `json:"driver"`   // 数据库驱动类型（mysql/postgres/sqlite），空值等价于 "mysql"
+	Timezone  string    `json:"timezone"` // IANA 时区名（如 "Asia/Shanghai"），空值等价于 "Local"
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 	// SSH 隧道配置（可选） — 零值 (Enabled=false) 表示直连数据库
@@ -140,5 +140,5 @@ type SSHConfig struct {
 	Password       string `json:"password"`       // SSH 密码（与私钥二选一）
 	PrivateKeyPath string `json:"privateKeyPath"` // 私钥文件路径（如 ~/.ssh/id_rsa）
 	PrivateKeyPass string `json:"privateKeyPass"` // 私钥口令（加密私钥时需要）
-	HostKeyAlgo    string `json:"hostKeyAlgo"`    // TODO: 未来用于 known_hosts 主机密钥校验（当前未实现）
+	HostKeyAlgo    string `json:"hostKeyAlgo"`    // 主机密钥算法白名单（当前未实现；known_hosts 校验已由 buildHostKeyCallback 实现）
 }
